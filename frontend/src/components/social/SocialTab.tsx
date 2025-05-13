@@ -34,9 +34,15 @@ const SocialTab = ({ userId, onProfileUpdate }: SocialTabProps) => {
     if (onProfileUpdate && userId) {
       try {
         const response = await apiClient.get(`/api/users/${userId}`);
-        onProfileUpdate(response.data);
-      } catch (error) {
+        if (response.data) {
+          onProfileUpdate(response.data);
+        }
+      } catch (error: any) {
         console.error('Error refreshing user data:', error);
+        // Don't keep trying if there are auth errors
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          console.log("Authentication error, skipping profile refresh");
+        }
       }
     }
   };

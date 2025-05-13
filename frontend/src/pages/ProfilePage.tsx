@@ -111,10 +111,10 @@ const ProfilePage = () => {
     // Refresh the user profile data immediately when the component mounts
     refreshUserProfile();
     
-    // Set up an interval to refresh the profile data every 30 seconds
+    // Set up an interval to refresh the profile data every 3 minutes instead of 30 seconds
     const intervalId = setInterval(() => {
       refreshUserProfile();
-    }, 30000);
+    }, 180000);
     
     // Clean up the interval when the component unmounts
     return () => clearInterval(intervalId);
@@ -170,20 +170,31 @@ const ProfilePage = () => {
       const response = await apiClient.get(`/api/users/${user.id}`);
       // Make sure the response includes the _count field
       if (response.data && response.data._count) {
-        // Update the user in the auth store
-        setUser({
-          ...user, 
-          ...response.data,
-          _count: {
-            notes: response.data._count.notes || 0,
-            followers: response.data._count.followers || 0,
-            following: response.data._count.following || 0
-          }
-        });
-        console.log("Profile refreshed:", response.data);
+        // Only update if there are actual changes
+        if (JSON.stringify(user) !== JSON.stringify(response.data)) {
+          // Update the user in the auth store
+          setUser({
+            ...user, 
+            ...response.data,
+            _count: {
+              notes: response.data._count.notes || 0,
+              followers: response.data._count.followers || 0,
+              following: response.data._count.following || 0
+            }
+          });
+          console.log("Profile refreshed with changes:", response.data);
+        } else {
+          console.log("Profile refresh: no changes detected");
+        }
       }
     } catch (err) {
       console.error('Error refreshing user profile:', err);
+      // Stop further periodic refreshes on auth errors
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        console.log("Auth error detected, stopping periodic profile refreshes");
+        // Navigate to login if token is invalid
+        navigate('/login');
+      }
     }
   };
   
