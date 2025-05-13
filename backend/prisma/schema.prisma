@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  name         String
+  profileImage String?
+  bio          String?
+  education    String?
+  interests    String[]  @default([])
+  socialLinks  Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  notes        Note[]
+  favorites    Favorite[]
+  comments     Comment[]
+  // New fields for follow system
+  followers    Follow[]            @relation("follower")
+  following    Follow[]            @relation("following")
+  // New fields for connection system
+  sentRequests     ConnectionRequest[] @relation("sender")
+  receivedRequests ConnectionRequest[] @relation("receiver")
+  // Notifications
+  notifications   Notification[]  @relation("notificationReceiver")
+  causedNotifications Notification[] @relation("notificationCauser")
+}
+
+model Note {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  fileUrl     String?
+  externalUrl String?
+  semester    String
+  courseId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  tags        NoteTags[]
+  favorites   Favorite[]
+  comments    Comment[]
+}
+
+model Tag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  notes     NoteTags[]
+}
+
+model NoteTags {
+  noteId String
+  tagId  String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+}
+
+model Favorite {
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@id([userId, noteId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+}
+
+// Instagram-style follow relationship
+model Follow {
+  followerId   String
+  followingId  String
+  createdAt    DateTime @default(now())
+  follower     User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following    User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// LinkedIn-style connection system
+model ConnectionRequest {
+  id          String   @id @default(uuid())
+  senderId    String
+  receiverId  String
+  status      String   @default("pending") // pending, accepted, declined
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sender      User     @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+// Notification system
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String   // user who receives the notification
+  causerId    String   // user who caused the notification
+  type        String   // follow, connection_request, connection_accepted, etc.
+  read        Boolean  @default(false)
+  data        Json?    // additional data if needed
+  createdAt   DateTime @default(now())
+  user        User     @relation("notificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  causer      User     @relation("notificationCauser", fields: [causerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([causerId])
+} 

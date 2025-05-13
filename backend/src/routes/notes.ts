@@ -1,0 +1,710 @@
+import express, { Request, Response } from 'express';
+import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import multer from 'multer';
+import { prisma } from '../index';
+import { auth } from '../middleware/auth';
+
+export const notesRouter = express.Router();
+
+// Set up multer for file uploads
+const uploadDir = process.env.UPLOAD_DIR || './uploads';
+
+// Ensure uploads directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept PDF files only
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'));
+    }
+  }
+});
+
+// Validation schemas
+const createNoteSchema = z.object({
+  title: z.string().min(3),
+  description: z.string(),
+  externalUrl: z.string().url().optional(),
+  semester: z.string(),
+  courseId: z.string().optional(),
+  tags: z.array(z.string())
+});
+
+const updateNoteSchema = z.object({
+  title: z.string().min(3).optional(),
+  description: z.string().optional(),
+  externalUrl: z.string().url().optional(),
+  semester: z.string().optional(),
+  courseId: z.string().optional(),
+  tags: z.array(z.string()).optional()
+});
+
+// Create a new note with file upload
+notesRouter.post('/', auth, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { title, description, externalUrl, semester, courseId, tags } = req.body;
+    
+    // Validate input
+    const validInput = createNoteSchema.safeParse({
+      title,
+      description,
+      externalUrl,
+      semester,
+      courseId,
+      tags: tags ? JSON.parse(tags) : []
+    });
+
+    if (!validInput.success) {
+      // Delete uploaded file if validation fails
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({ error: validInput.error.issues });
+    }
+
+    // Create note in database
+    const note = await prisma.note.create({
+      data: {
+        title: validInput.data.title,
+        description: validInput.data.description,
+        externalUrl: validInput.data.externalUrl,
+        fileUrl: req.file ? `/uploads/${req.file.filename}` : null,
+        semester: validInput.data.semester,
+        courseId: validInput.data.courseId,
+        user: {
+          connect: { id: req.user!.id }
+        }
+      }
+    });
+
+    // Create tags or connect existing ones
+    const parsedTags = validInput.data.tags || [];
+    
+    if (parsedTags.length > 0) {
+      await Promise.all(
+        parsedTags.map(async (tagName) => {
+          // Find tag or create if doesn't exist
+          const tag = await prisma.tag.upsert({
+            where: { name: tagName },
+            update: {},
+            create: { name: tagName }
+          });
+
+          // Create relationship between note and tag
+          await prisma.noteTags.create({
+            data: {
+              noteId: note.id,
+              tagId: tag.id
+            }
+          });
+        })
+      );
+    }
+
+    // Get the created note with tags
+    const noteWithTags = await prisma.note.findUnique({
+      where: { id: note.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json(noteWithTags);
+  } catch (error) {
+    console.error('Create note error:', error);
+    
+    // Delete uploaded file if there's an error
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ error: 'Failed to create note' });
+  }
+});
+
+// Get all notes with filtering
+notesRouter.get('/', async (req: Request, res: Response) => {
+  try {
+    const { search, semester, subject, course } = req.query;
+    
+    // Use proper Prisma types
+    const filter: any = { AND: [] };
+    
+    // Enhanced search logic
+    if (search && typeof search === 'string') {
+      const trimmedSearch = search.trim();
+      
+      // Check if it's an exact search (enclosed in quotes)
+      const isExactSearch = /^"[^"]+"$/.test(trimmedSearch);
+      let searchText = trimmedSearch;
+      
+      if (isExactSearch) {
+        // Remove the quotes for the search
+        searchText = trimmedSearch.substring(1, trimmedSearch.length - 1);
+        
+        // For exact search, use equality where possible
+        filter.OR = [
+          { title: { equals: searchText, mode: 'insensitive' } },
+          { description: { contains: searchText, mode: 'insensitive' } },
+          { 
+            tags: {
+              some: {
+                tag: {
+                  name: { equals: searchText, mode: 'insensitive' }
+                }
+              }
+            }
+          }
+        ];
+      } else {
+        // Prepare search terms for more effective searching
+        const searchTerms = searchText
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(term => term.length > 1); // Filter out single characters
+        
+        if (searchTerms.length > 0) {
+          const searchConditions: any[] = [];
+          
+          // Title search (higher weight in relevance calculation)
+          searchConditions.push({
+            OR: searchTerms.map(term => ({
+              title: { 
+                contains: term,
+                mode: 'insensitive' 
+              }
+            }))
+          });
+          
+          // Description search
+          searchConditions.push({
+            OR: searchTerms.map(term => ({
+              description: { 
+                contains: term,
+                mode: 'insensitive'
+              }
+            }))
+          });
+          
+          // Tag search
+          searchConditions.push({
+            OR: searchTerms.map(term => ({
+              tags: {
+                some: {
+                  tag: {
+                    name: { 
+                      contains: term,
+                      mode: 'insensitive'
+                    }
+                  }
+                }
+              }
+            }))
+          });
+          
+          filter.OR = searchConditions;
+        }
+      }
+    }
+    
+    // Other filters
+    const andFilters: any[] = [];
+    
+    if (semester) {
+      andFilters.push({ semester: semester as string });
+    }
+    
+    if (subject) {
+      andFilters.push({
+        tags: {
+          some: {
+            tag: {
+              name: subject as string
+            }
+          }
+        }
+      });
+    }
+    
+    if (course) {
+      // Since we don't have a direct course relation in this example,
+      // we can search for it in tags or other relevant fields
+      andFilters.push({
+        OR: [
+          // Look for course in tags
+          {
+            tags: {
+              some: {
+                tag: {
+                  name: { contains: course as string, mode: 'insensitive' }
+                }
+              }
+            }
+          },
+          // Look for course in title
+          {
+            title: { contains: course as string, mode: 'insensitive' }
+          }
+        ]
+      });
+    }
+    
+    // Add AND filters if they exist
+    if (andFilters.length > 0) {
+      filter.AND = andFilters;
+    } else {
+      delete filter.AND;
+    }
+    
+    // Get notes with filtering
+    const notes = await prisma.note.findMany({
+      where: filter,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        _count: {
+          select: {
+            favorites: true,
+            comments: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // If search was performed, add a relevance score for the frontend
+    let notesWithRelevance = notes;
+    
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const searchTerms = search.toLowerCase().split(/\s+/);
+      
+      notesWithRelevance = notes.map(note => {
+        // Calculate a simple relevance score based on search terms
+        let relevanceScore = 0;
+        
+        // Title matches carry highest weight
+        searchTerms.forEach(term => {
+          if (note.title.toLowerCase().includes(term)) {
+            relevanceScore += 3;
+          }
+          
+          // Exact title match gets extra points
+          if (note.title.toLowerCase() === search.toLowerCase()) {
+            relevanceScore += 5;
+          }
+          
+          // Description matches
+          if (note.description.toLowerCase().includes(term)) {
+            relevanceScore += 1;
+          }
+          
+          // Tag matches (if tags exist)
+          if (note.tags && Array.isArray(note.tags)) {
+            note.tags.forEach((tagRel: any) => {
+              if (tagRel.tag && tagRel.tag.name && 
+                  tagRel.tag.name.toLowerCase().includes(term)) {
+                relevanceScore += 2;
+              }
+            });
+          }
+        });
+        
+        return {
+          ...note,
+          _relevance: relevanceScore
+        };
+      });
+      
+      // Sort by relevance score
+      notesWithRelevance.sort((a: any, b: any) => b._relevance - a._relevance);
+    }
+    
+    // Return search metadata with results
+    res.json({
+      results: notesWithRelevance,
+      totalCount: notesWithRelevance.length,
+      searchPerformed: !!search && typeof search === 'string' && search.trim() !== ''
+    });
+  } catch (error) {
+    console.error('Get notes error:', error);
+    res.status(500).json({ error: 'Failed to get notes' });
+  }
+});
+
+// Get a single note by ID
+notesRouter.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const note = await prisma.note.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        comments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                profileImage: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            favorites: true
+          }
+        }
+      }
+    });
+    
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    res.json(note);
+  } catch (error) {
+    console.error('Get note error:', error);
+    res.status(500).json({ error: 'Failed to get note' });
+  }
+});
+
+// Update a note
+notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, description, externalUrl, semester, courseId, tags } = req.body;
+    
+    // Validate input
+    const validInput = updateNoteSchema.safeParse({
+      title,
+      description,
+      externalUrl,
+      semester,
+      courseId,
+      tags: tags ? JSON.parse(tags) : undefined
+    });
+
+    if (!validInput.success) {
+      // Delete uploaded file if validation fails
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({ error: validInput.error.issues });
+    }
+    
+    // Check if note exists and belongs to user
+    const existingNote = await prisma.note.findUnique({
+      where: { id },
+      include: {
+        tags: true
+      }
+    });
+    
+    if (!existingNote) {
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    if (existingNote.userId !== req.user!.id) {
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(403).json({ error: 'Not authorized to update this note' });
+    }
+    
+    // Handle file updates
+    let fileUrl = existingNote.fileUrl;
+    
+    if (req.file) {
+      // Delete old file if it exists
+      if (existingNote.fileUrl) {
+        const oldFilePath = path.join(
+          process.cwd(),
+          existingNote.fileUrl.replace(/^\/uploads\//, uploadDir + '/')
+        );
+        
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      }
+      
+      // Set new file URL
+      fileUrl = `/uploads/${req.file.filename}`;
+    }
+    
+    // Update note
+    const updatedNote = await prisma.note.update({
+      where: { id },
+      data: {
+        title: validInput.data.title,
+        description: validInput.data.description,
+        externalUrl: validInput.data.externalUrl,
+        fileUrl,
+        semester: validInput.data.semester,
+        courseId: validInput.data.courseId
+      }
+    });
+    
+    // Update tags if provided
+    if (validInput.data.tags) {
+      // Delete existing tag relationships
+      await prisma.noteTags.deleteMany({
+        where: { noteId: id }
+      });
+      
+      // Create new tag relationships
+      await Promise.all(
+        validInput.data.tags.map(async (tagName) => {
+          // Find tag or create if doesn't exist
+          const tag = await prisma.tag.upsert({
+            where: { name: tagName },
+            update: {},
+            create: { name: tagName }
+          });
+          
+          // Create relationship between note and tag
+          await prisma.noteTags.create({
+            data: {
+              noteId: id,
+              tagId: tag.id
+            }
+          });
+        })
+      );
+    }
+    
+    // Get the updated note with tags
+    const noteWithTags = await prisma.note.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      }
+    });
+    
+    res.json(noteWithTags);
+  } catch (error) {
+    console.error('Update note error:', error);
+    
+    // Delete uploaded file if there's an error
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ error: 'Failed to update note' });
+  }
+});
+
+// Delete a note
+notesRouter.delete('/:id', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if note exists and belongs to user
+    const existingNote = await prisma.note.findUnique({
+      where: { id }
+    });
+    
+    if (!existingNote) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    if (existingNote.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this note' });
+    }
+    
+    // Delete file if it exists
+    if (existingNote.fileUrl) {
+      const filePath = path.join(
+        process.cwd(),
+        existingNote.fileUrl.replace(/^\/uploads\//, uploadDir + '/')
+      );
+      
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    
+    // Delete note (cascading will delete related tags)
+    await prisma.note.delete({
+      where: { id }
+    });
+    
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    console.error('Delete note error:', error);
+    res.status(500).json({ error: 'Failed to delete note' });
+  }
+});
+
+// Add/Remove a favorite
+notesRouter.post('/:id/favorite', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    
+    // Check if note exists
+    const note = await prisma.note.findUnique({
+      where: { id }
+    });
+    
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    // Check if already favorited
+    const existingFavorite = await prisma.favorite.findUnique({
+      where: {
+        userId_noteId: {
+          userId,
+          noteId: id
+        }
+      }
+    });
+    
+    let result;
+    
+    if (existingFavorite) {
+      // Remove favorite
+      result = await prisma.favorite.delete({
+        where: {
+          userId_noteId: {
+            userId,
+            noteId: id
+          }
+        }
+      });
+      
+      res.json({ action: 'removed', favorite: result });
+    } else {
+      // Add favorite
+      result = await prisma.favorite.create({
+        data: {
+          userId,
+          noteId: id
+        }
+      });
+      
+      res.json({ action: 'added', favorite: result });
+    }
+  } catch (error) {
+    console.error('Favorite note error:', error);
+    res.status(500).json({ error: 'Failed to update favorite status' });
+  }
+});
+
+// Add a comment to a note
+notesRouter.post('/:id/comments', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: 'Comment content is required' });
+    }
+    
+    // Check if note exists
+    const note = await prisma.note.findUnique({
+      where: { id }
+    });
+    
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    // Create comment
+    const comment = await prisma.comment.create({
+      data: {
+        content,
+        userId: req.user!.id,
+        noteId: id
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profileImage: true
+          }
+        }
+      }
+    });
+    
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error('Create comment error:', error);
+    res.status(500).json({ error: 'Failed to create comment' });
+  }
+}); 
