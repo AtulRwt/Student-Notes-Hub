@@ -1,4 +1,5 @@
-import { FaGithub } from 'react-icons/fa';
+import { FaGithub, FaCommentAlt } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -16,15 +17,25 @@ const Footer = () => {
             </p>
           </div>
           
-          <div className="gradient-border p-2 rounded-full flex justify-center items-center bg-dark">
-            <a
-              href="https://github.com/yourusername/student-notes-hub"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 transition-colors"
+          <div className="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4">
+            <Link
+              to="/feedback"
+              className="flex items-center px-4 py-2 rounded-md bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 hover:text-blue-300 transition-colors border border-blue-500/30"
             >
-              <FaGithub className="w-6 h-6" />
-            </a>
+              <FaCommentAlt className="mr-2" /> 
+              <span className="font-medium">Send Feedback</span>
+            </Link>
+            
+            <div className="gradient-border p-2 rounded-full flex justify-center items-center bg-dark">
+              <a
+                href="https://github.com/yourusername/student-notes-hub"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <FaGithub className="w-6 h-6" />
+              </a>
+            </div>
           </div>
         </div>
       </div>

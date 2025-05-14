@@ -34,6 +34,20 @@ model User {
   // Notifications
   notifications   Notification[]  @relation("notificationReceiver")
   causedNotifications Notification[] @relation("notificationCauser")
+  // User settings
+  settings      UserSettings?
+}
+
+// User settings model to store all user preferences
+model UserSettings {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  notifications Json     // Store notification preferences as JSON
+  appearance   Json     // Store appearance preferences as JSON
+  security     Json     // Store security preferences as JSON
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Note {
@@ -134,4 +148,16 @@ model Notification {
 
   @@index([userId])
   @@index([causerId])
+}
+
+model Feedback {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  rating    Int?
+  category  String?
+  emailTo   String   @default("studentnoteshub@gmail.com")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 } 

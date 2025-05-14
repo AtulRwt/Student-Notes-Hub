@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import Layout from './components/layout/Layout';
 import { useAuthStore } from './store/authStore';
+import { useSettingsStore } from './store/settingsStore';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
@@ -19,6 +20,8 @@ import FeedPage from './pages/FeedPage';
 import NotFoundPage from './pages/NotFoundPage';
 import Network from './pages/Network';
 import ConnectionsPage from './pages/ConnectionsPage';
+import FeedbackPage from './pages/FeedbackPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Set up React Query
 const queryClient = new QueryClient();
@@ -35,11 +38,30 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, isAuthenticated } = useAuthStore();
+  const { fetchSettings, applyAppearanceSettings, appearance } = useSettingsStore();
+  
+  // Apply appearance settings immediately on mount - before any other effects
+  useEffect(() => {
+    // This ensures the UI respects appearance preferences even before API data loads
+    applyAppearanceSettings();
+  }, []);
+  
+  // Apply appearance settings whenever they change
+  useEffect(() => {
+    applyAppearanceSettings();
+  }, [appearance, applyAppearanceSettings]);
   
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+  
+  // Initialize settings when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSettings();
+    }
+  }, [isAuthenticated, fetchSettings]);
   
   return (
     <ErrorBoundary>
@@ -51,6 +73,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
             
             {/* Notes routes - now protected */}
             <Route 
@@ -147,6 +170,25 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+            
+            {/* Settings page */}
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <ErrorBoundary fallback={
+                    <div className="container mx-auto py-8 px-4">
+                      <div className="bg-red-900/20 text-red-400 p-4 rounded-md">
+                        <h2 className="text-xl font-bold mb-2">Error displaying settings</h2>
+                        <p>There was an error loading your settings. Please try refreshing the page or contact support.</p>
+                      </div>
+                    </div>
+                  }>
+                    <SettingsPage />
+                  </ErrorBoundary>
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Catch all */}
             <Route path="*" element={<NotFoundPage />} />

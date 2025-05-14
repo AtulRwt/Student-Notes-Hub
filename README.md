@@ -10,6 +10,7 @@ A modern web application for students to share and collaborate on educational re
 - **Social Features**: Follow users, create connections, and interact with notifications
 - **Search & Tagging**: Find relevant content through powerful search and tag system
 - **User Profiles**: Customizable profiles with academic interests and social links
+- **Feedback System**: Built-in feedback form that sends notifications to administrators
 
 ## Tech Stack
 
@@ -17,6 +18,7 @@ A modern web application for students to share and collaborate on educational re
 - **Backend**: Node.js, Express, TypeScript
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: JWT-based authentication
+- **Email**: Nodemailer for feedback notifications
 
 ## Getting Started
 
@@ -53,6 +55,12 @@ A modern web application for students to share and collaborate on educational re
      JWT_SECRET="your-secret-key"
      PORT=5000
      UPLOAD_DIR="./uploads"
+     
+     # Optional email settings for feedback notifications
+     EMAIL_SERVICE="gmail"
+     EMAIL_USER="your-email@gmail.com"
+     EMAIL_PASSWORD="your-app-password"
+     EMAIL_FROM="Student Notes Hub <your-email@gmail.com>"
      ```
 
 4. Run database migrations:
@@ -79,17 +87,35 @@ student-notes-platform/
 │   ├── src/              # Source code
 │   │   ├── middleware/   # Express middleware
 │   │   ├── routes/       # API routes
+│   │   ├── services/     # Service modules
 │   │   └── index.ts      # Entry point
 │   └── uploads/          # User uploaded files
 └── frontend/             # React frontend
     ├── public/           # Static assets
     └── src/              # Source code
         ├── components/   # React components
+        │   ├── auth/     # Authentication components
+        │   ├── layout/   # Layout components
+        │   ├── notes/    # Note-related components
+        │   ├── shared/   # Shared/common components
+        │   └── ui/       # UI components
         ├── pages/        # Page components
+        ├── services/     # API services
         ├── store/        # State management
         ├── types/        # TypeScript interfaces
         └── utils/        # Utility functions
 ```
+
+## Feedback System
+
+The platform includes a dedicated feedback system that allows users to:
+
+- Submit feedback directly from the application
+- Rate their experience on a scale of 1-5
+- Categorize their feedback (bug report, feature request, general feedback, etc.)
+- Send feedback notifications to administrators
+
+All feedback is stored in the database and can be accessed by administrators. Email notifications are sent to the configured email address when feedback is submitted.
 
 ## Contributing
 

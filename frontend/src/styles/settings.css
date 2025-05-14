@@ -1,0 +1,40 @@
+/* Light theme styles */
+:root.light-theme {
+  --color-bg: #f8f9fa;
+  --color-text: #333;
+  --color-primary: #3b82f6;
+  --color-accent: #6366f1;
+  --color-card-bg: #fff;
+  --color-card-border: rgba(0, 0, 0, 0.1);
+}
+
+/* Dark theme is the default in this app */
+:root {
+  --color-bg: #121212;
+  --color-text: #e5e7eb;
+  --color-primary: #3b82f6;
+  --color-accent: #6366f1;
+  --color-card-bg: rgba(30, 41, 59, 0.8);
+  --color-card-border: rgba(255, 255, 255, 0.1);
+}
+
+/* High contrast mode */
+:root.high-contrast {
+  --color-text: #ffffff;
+  --color-primary: #4da3ff;
+  --color-accent: #b07eff;
+  --color-card-border: rgba(255, 255, 255, 0.3);
+}
+
+:root.light-theme.high-contrast {
+  --color-text: #000000;
+  --color-primary: #0051c3;
+  --color-accent: #5300c3;
+  --color-card-border: rgba(0, 0, 0, 0.3);
+}
+
+/* Reduced motion */
+:root.reduced-motion * {
+  transition: none !important;
+  animation: none !important;
+} 

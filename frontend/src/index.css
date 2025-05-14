@@ -18,6 +18,69 @@
   h3 {
     @apply text-xl font-bold mb-2 text-light;
   }
+  
+  /* Light theme styles - simplified to mostly change background */
+  .light-theme {
+    --color-background: #f9fafb;
+    --color-foreground: #1f2937;
+    --color-lighter: #f3f4f6;
+    --color-border: #e5e7eb;
+    --color-accent: #d1d5db;
+  }
+  
+  /* Dark theme is the default */
+  :root {
+    --color-background: #121212;
+    --color-foreground: #f3f4f6;
+    --color-lighter: #1e1e1e;
+    --color-border: #2d2d2d;
+    --color-accent: #3f3f3f;
+  }
+  
+  /* Apply CSS variables to elements - simplified for light mode */
+  .light-theme body {
+    @apply bg-white;
+  }
+  
+  /* Text color remains unchanged in light mode except for headings */
+  .light-theme h1, .light-theme h2, .light-theme h3 {
+    @apply text-light;
+  }
+  
+  /* High-contrast mode */
+  .high-contrast {
+    --color-foreground: #ffffff;
+    --color-background: #000000;
+    --color-border: #ffffff;
+    --color-accent: #ffff00;
+  }
+  
+  .high-contrast body {
+    @apply bg-black text-white;
+  }
+  
+  .high-contrast a, .high-contrast button {
+    @apply text-yellow-300 underline;
+  }
+  
+  .high-contrast h1, .high-contrast h2, .high-contrast h3 {
+    @apply text-white;
+  }
+  
+  .high-contrast .glass, .high-contrast .glass-light {
+    background-color: rgba(0, 0, 0, 0.95);
+    border: 2px solid white;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  
+  /* Reduced motion for accessibility */
+  .reduced-motion * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @layer components {
@@ -44,6 +107,21 @@
   .card {
     @apply bg-dark-lighter rounded-lg shadow-md p-4 mb-4 text-light;
   }
+  
+  /* Light theme variants - focus on input fields */
+  .light-theme .btn-secondary {
+    @apply bg-gray-100 border border-gray-300 hover:bg-gray-200;
+  }
+  
+  /* Adjust input fields for light mode */
+  .light-theme .input {
+    @apply bg-gray-100 border border-gray-300 text-gray-800 focus:ring-blue-500;
+  }
+  
+  /* Keep cards dark in light mode */
+  .light-theme .card {
+    @apply bg-dark-lighter text-light;
+  }
 }
 
 /* Glassmorphism utilities */
@@ -63,6 +141,19 @@
   -webkit-backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 0.5rem;
+}
+
+/* Light theme glass variants - maintain dark appearance */
+.light-theme .glass {
+  background-color: rgba(30, 30, 30, 0.7);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.light-theme .glass-light {
+  background-color: rgba(40, 40, 40, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .gradient-text {
@@ -167,6 +258,19 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
+  @apply bg-accent;
+}
+
+/* Light theme scrollbar - keep dark style */
+.light-theme ::-webkit-scrollbar-track {
+  @apply bg-dark;
+}
+
+.light-theme ::-webkit-scrollbar-thumb {
+  @apply bg-dark-accent rounded-full;
+}
+
+.light-theme ::-webkit-scrollbar-thumb:hover {
   @apply bg-accent;
 }
 

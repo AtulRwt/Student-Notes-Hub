@@ -8,7 +8,8 @@ import type {
   Comment,
   Tag,
   ProfileUpdateData,
-  User
+  User,
+  FeedbackFormData
 } from '../types';
 
 const API_URL = 'http://localhost:5000/api';
@@ -313,6 +314,84 @@ export const tagsAPI = {
   // Get notes by tag
   getNotesByTag: async (tagId: string): Promise<Note[]> => {
     const response = await api.get<Note[]>(`/tags/${tagId}/notes`);
+    return response.data;
+  }
+};
+
+// Feedback API
+export const feedbackAPI = {
+  // Submit feedback
+  submitFeedback: async (data: FeedbackFormData): Promise<{ success: boolean; message: string; data: any }> => {
+    const response = await api.post<{ success: boolean; message: string; data: any }>('/feedback', data);
+    return response.data;
+  },
+  
+  // Get all feedback (requires auth)
+  getAllFeedback: async (): Promise<any[]> => {
+    const response = await api.get<any[]>('/feedback');
+    return response.data;
+  }
+};
+
+// Settings API
+export const settingsAPI = {
+  // Get all user settings
+  getSettings: async (): Promise<any> => {
+    const response = await api.get('/settings');
+    return response.data;
+  },
+  
+  // Update account settings with better error handling
+  updateAccount: async (data: { 
+    email?: string; 
+    password?: { oldPassword: string; newPassword: string } 
+  }): Promise<any> => {
+    try {
+      // Log what we're trying to update (without revealing actual passwords)
+      const updateTypes = [];
+      if (data.email) updateTypes.push('email');
+      if (data.password) updateTypes.push('password');
+      console.log(`Updating account settings: ${updateTypes.join(', ')}`);
+      
+      const response = await api.patch('/settings/account', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Account update error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Update notification settings
+  updateNotifications: async (data: {
+    emailNotifications?: boolean;
+    newComments?: boolean;
+    newFollowers?: boolean;
+    connectionRequests?: boolean;
+    notesFromFollowing?: boolean;
+    systemAnnouncements?: boolean;
+  }): Promise<any> => {
+    const response = await api.patch('/settings/notifications', data);
+    return response.data;
+  },
+  
+  // Update appearance settings
+  updateAppearance: async (data: {
+    theme?: 'dark' | 'light';
+    fontSize?: 'small' | 'medium' | 'large';
+    reducedMotion?: boolean;
+    highContrast?: boolean;
+  }): Promise<any> => {
+    const response = await api.patch('/settings/appearance', data);
+    return response.data;
+  },
+  
+  // Update security settings
+  updateSecurity: async (data: {
+    twoFactorAuth?: boolean;
+    loginAlerts?: boolean;
+    sessionTimeout?: string;
+  }): Promise<any> => {
+    const response = await api.patch('/settings/security', data);
     return response.data;
   }
 };

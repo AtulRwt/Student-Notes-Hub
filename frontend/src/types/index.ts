@@ -230,4 +230,46 @@ export interface Collection {
   }[];
   createdAt: string;
   updatedAt: string;
+}
+
+// Feedback types
+export interface FeedbackFormData {
+  name: string;
+  email: string;
+  message: string;
+  category?: string;
+  rating?: number;
+}
+
+// Settings types
+export interface NotificationSettings {
+  emailNotifications: boolean;
+  newComments: boolean;
+  newFollowers: boolean;
+  connectionRequests: boolean;
+  notesFromFollowing: boolean;
+  systemAnnouncements: boolean;
+}
+
+export interface AppearanceSettings {
+  theme: 'dark' | 'light';
+  fontSize: 'small' | 'medium' | 'large';
+  reducedMotion: boolean;
+  highContrast: boolean;
+}
+
+export interface SecuritySettings {
+  twoFactorAuth: boolean;
+  loginAlerts: boolean;
+  sessionTimeout: string;
+}
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  notifications: NotificationSettings;
+  appearance: AppearanceSettings;
+  security: SecuritySettings;
+  createdAt: string;
+  updatedAt: string;
 } 
