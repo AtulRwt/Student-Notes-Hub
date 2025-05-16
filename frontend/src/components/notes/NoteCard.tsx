@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FaFilePdf, FaExternalLinkAlt, FaComment, FaStar, FaRegStar, FaThumbsUp, FaBookmark, FaBookOpen } from 'react-icons/fa';
+import { FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaExternalLinkAlt, FaComment, FaStar, FaRegStar, FaThumbsUp, FaBookmark, FaBookOpen } from 'react-icons/fa';
 import { useAuthStore } from '../../store/authStore';
 import { useNotesStore } from '../../store/notesStore';
 import type { Note, ResourceType, Course } from '../../types';
@@ -93,9 +93,30 @@ const NoteCard = ({ note, searchTerm }: NoteCardProps) => {
   // Get course information
   const courseInfo = note.courseId ? COURSES[note.courseId] : null;
   
-  // Determine if note has PDF or external link
+  // Determine if note has file or external link
   const hasFile = !!note.fileUrl;
   const hasLink = !!note.externalUrl;
+  
+  // Determine file type from fileUrl
+  const getFileType = () => {
+    if (!note.fileUrl) return { icon: FaFile, label: 'File', color: 'text-gray-400' };
+    
+    const fileExt = note.fileUrl.split('.').pop()?.toLowerCase();
+    
+    if (fileExt === 'pdf') {
+      return { icon: FaFilePdf, label: 'PDF', color: 'text-red-500' };
+    } else if (['doc', 'docx'].includes(fileExt || '')) {
+      return { icon: FaFileWord, label: 'Word', color: 'text-blue-500' };
+    } else if (['xls', 'xlsx'].includes(fileExt || '')) {
+      return { icon: FaFileExcel, label: 'Excel', color: 'text-green-500' };
+    } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt || '')) {
+      return { icon: FaFileImage, label: 'Image', color: 'text-purple-500' };
+    } else {
+      return { icon: FaFile, label: 'File', color: 'text-gray-400' };
+    }
+  };
+  
+  const fileType = hasFile ? getFileType() : null;
   
   // Get resource type display name and color (fallback to lecture_notes if not set)
   const resourceType = 'lecture_notes' as ResourceType;
@@ -195,9 +216,9 @@ const NoteCard = ({ note, searchTerm }: NoteCardProps) => {
           
           {/* File type indicators */}
           <div className="flex items-center text-xs">
-            {hasFile && (
-              <span className="flex items-center mr-3 text-blue-400" title="PDF available">
-                <FaFilePdf className="mr-1" /> PDF
+            {hasFile && fileType && (
+              <span className={`flex items-center mr-3 ${fileType.color}`} title={`${fileType.label} available`}>
+                <fileType.icon className="mr-1" /> {fileType.label}
               </span>
             )}
             

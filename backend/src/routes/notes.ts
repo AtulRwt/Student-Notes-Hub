@@ -9,20 +9,26 @@ import { auth } from '../middleware/auth';
 export const notesRouter = express.Router();
 
 // Set up multer for file uploads
-const uploadDir = process.env.UPLOAD_DIR || './uploads';
+const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'));
 
 // Ensure uploads directory exists
 if (!fs.existsSync(uploadDir)) {
+  console.log(`Creating upload directory: ${uploadDir}`);
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+console.log('Using absolute upload directory path:', uploadDir);
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    console.log(`File destination: ${uploadDir}`);
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const filename = uniqueSuffix + path.extname(file.originalname);
+    console.log(`Generated filename: ${filename} for original: ${file.originalname}`);
+    cb(null, filename);
   }
 });
 
@@ -32,14 +38,51 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB max file size
   },
   fileFilter: (req, file, cb) => {
-    // Accept PDF files only
-    if (file.mimetype === 'application/pdf') {
+    console.log(`Checking file type: ${file.mimetype} for file: ${file.originalname}`);
+    // Accept multiple document types
+    const allowedMimeTypes = [
+      // PDF files
+      'application/pdf',
+      // Word documents
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      // Excel spreadsheets
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      // Image files
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/bmp',
+      'image/webp',
+      'image/tiff'
+    ];
+    
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      console.log(`File type ${file.mimetype} is allowed`);
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are allowed'));
+      console.log(`File type ${file.mimetype} is not allowed`);
+      cb(new Error(`File type ${file.mimetype} is not allowed. Only PDF, Word, Excel, and Image files are allowed`));
     }
   }
 });
+
+// Custom error handling for multer
+const uploadMiddleware = (req: Request, res: Response, next: Function) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        }
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+};
 
 // Validation schemas
 const createNoteSchema = z.object({
@@ -60,9 +103,13 @@ const updateNoteSchema = z.object({
   tags: z.array(z.string()).optional()
 });
 
-// Create a new note with file upload
-notesRouter.post('/', auth, upload.single('file'), async (req: Request, res: Response) => {
+// Create a new note with file upload - use the custom middleware
+notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response) => {
   try {
+    console.log('File upload request received');
+    console.log('Request body:', req.body);
+    console.log('File details:', req.file);
+    
     const { title, description, externalUrl, semester, courseId, tags } = req.body;
     
     // Validate input
@@ -78,11 +125,15 @@ notesRouter.post('/', auth, upload.single('file'), async (req: Request, res: Res
     if (!validInput.success) {
       // Delete uploaded file if validation fails
       if (req.file) {
+        console.log('Validation failed, removing uploaded file:', req.file.path);
         fs.unlinkSync(req.file.path);
       }
+      console.log('Validation errors:', validInput.error.issues);
       return res.status(400).json({ error: validInput.error.issues });
     }
 
+    console.log('Validation passed, creating note in database');
+    
     // Create note in database
     const note = await prisma.note.create({
       data: {
@@ -98,10 +149,14 @@ notesRouter.post('/', auth, upload.single('file'), async (req: Request, res: Res
       }
     });
 
+    console.log('Note created:', note.id);
+    console.log('File URL (if any):', note.fileUrl);
+
     // Create tags or connect existing ones
     const parsedTags = validInput.data.tags || [];
     
     if (parsedTags.length > 0) {
+      console.log('Processing tags:', parsedTags);
       await Promise.all(
         parsedTags.map(async (tagName) => {
           // Find tag or create if doesn't exist
@@ -120,6 +175,7 @@ notesRouter.post('/', auth, upload.single('file'), async (req: Request, res: Res
           });
         })
       );
+      console.log('Tags processing completed');
     }
 
     // Get the created note with tags
@@ -141,16 +197,22 @@ notesRouter.post('/', auth, upload.single('file'), async (req: Request, res: Res
       }
     });
 
+    console.log('Returning note with tags');
     res.status(201).json(noteWithTags);
   } catch (error) {
-    console.error('Create note error:', error);
+    console.error('Create note error details:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Create note error stack:', error instanceof Error ? error.stack : 'No stack trace');
     
     // Delete uploaded file if there's an error
     if (req.file) {
+      console.log('Error occurred, removing uploaded file:', req.file.path);
       fs.unlinkSync(req.file.path);
     }
     
-    res.status(500).json({ error: 'Failed to create note' });
+    res.status(500).json({ 
+      error: 'Failed to create note', 
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -704,7 +766,7 @@ notesRouter.post('/:id/comments', auth, async (req: Request, res: Response) => {
     
     res.status(201).json(comment);
   } catch (error) {
-    console.error('Create comment error:', error);
+    console.error('Add comment error:', error);
     res.status(500).json({ error: 'Failed to create comment' });
   }
 }); 

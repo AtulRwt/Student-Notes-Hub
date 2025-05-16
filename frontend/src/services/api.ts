@@ -138,6 +138,19 @@ export const notesAPI = {
 
   // Create note
   createNote: async (data: NoteFormData): Promise<Note> => {
+    console.log('Creating note with data:', {
+      title: data.title,
+      description: data.description,
+      externalUrl: data.externalUrl || 'none',
+      semester: data.semester,
+      courseId: data.courseId,
+      tags: data.tags,
+      hasFile: data.file !== null,
+      fileType: data.file?.type,
+      fileName: data.file?.name,
+      fileSize: data.file?.size
+    });
+    
     const formData = new FormData();
     
     // Add text fields
@@ -145,18 +158,39 @@ export const notesAPI = {
     formData.append('description', data.description);
     if (data.externalUrl) formData.append('externalUrl', data.externalUrl);
     formData.append('semester', data.semester);
+    if (data.courseId) formData.append('courseId', data.courseId);
     formData.append('tags', JSON.stringify(data.tags));
     
     // Add file if exists
-    if (data.file) formData.append('file', data.file);
+    if (data.file) {
+      console.log('Appending file to form data:', data.file.name, data.file.type, data.file.size);
+      formData.append('file', data.file);
+      
+      // Log form data content
+      console.log('Form data entries:');
+      for (const [key, value] of formData.entries()) {
+        if (key === 'file') {
+          console.log('- file:', (value as File).name, (value as File).type, (value as File).size);
+        } else {
+          console.log(`- ${key}:`, value);
+        }
+      }
+    }
     
-    const response = await api.post<Note>('/notes', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    return response.data;
+    try {
+      // Use a timeout of 30 seconds for large file uploads
+      const response = await api.post<Note>('/notes', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000, // 30 second timeout
+      });
+      console.log('Note creation response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Note creation error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
   // Update note

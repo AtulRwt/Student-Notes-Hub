@@ -35,7 +35,15 @@ const profileUpload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Accept image files only
-    if (file.mimetype.startsWith('image/')) {
+    const allowedImageTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/bmp', 
+      'image/webp'
+    ];
+    
+    if (allowedImageTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Only image files are allowed'));

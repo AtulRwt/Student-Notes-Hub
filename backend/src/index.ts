@@ -17,8 +17,14 @@ dotenv.config();
 // Create Express app
 const app = express();
 
-// Middleware
-app.use(cors());
+// Middleware with expanded CORS options
+app.use(cors({
+  origin: '*',  // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Disposition'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Create and export Prisma client
@@ -33,9 +39,14 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/feedback', feedbackRouter);
 app.use('/api/settings', settingsRouter);
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use('/uploads/profiles', express.static(path.join(__dirname, '../uploads/profiles')));
+// Static files - use absolute paths to ensure consistency
+const uploadsPath = path.resolve(path.join(__dirname, '../uploads'));
+console.log('Serving uploads from absolute path:', uploadsPath);
+app.use('/uploads', express.static(uploadsPath));
+
+const profilesPath = path.resolve(path.join(__dirname, '../uploads/profiles'));
+console.log('Serving profile uploads from absolute path:', profilesPath);
+app.use('/uploads/profiles', express.static(profilesPath));
 
 // Health check
 app.get('/health', (req, res) => {

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { FaUpload, FaLink, FaBookOpen } from 'react-icons/fa';
+import { FaUpload, FaLink, FaBookOpen, FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile } from 'react-icons/fa';
 import { useNotesStore } from '../../store/notesStore';
 import { useTagsStore } from '../../store/tagsStore';
 import type { NoteFormData, Note, ResourceType, Course } from '../../types';
@@ -38,7 +38,7 @@ const COURSES: Course[] = [
 ];
 
 interface NoteFormProps {
-  initialData?: Partial<Note>;
+  initialData?: Partial<Note> & { resourceType?: ResourceType };
   isEditing?: boolean;
 }
 
@@ -85,6 +85,8 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
   
   // For the file input
   const [fileName, setFileName] = useState<string>('');
+  const [fileType, setFileType] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     fetchTags();
@@ -101,21 +103,74 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    console.log('File selected:', file?.name, file?.type, file?.size);
+    
     if (file) {
-      // Check if file is a PDF
-      if (file.type !== 'application/pdf') {
-        toast.error('Only PDF files are allowed');
+      // Check file type
+      const allowedTypes = [
+        // PDF
+        'application/pdf',
+        // Word
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        // Excel
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        // Images
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/bmp',
+        'image/webp'
+      ];
+      
+      console.log('Checking file type:', file.type, 'allowed:', allowedTypes.includes(file.type));
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Only PDF, Word, Excel, and Image files are allowed');
+        // Reset the file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
       
       // Check file size (max 10MB)
+      console.log('Checking file size:', file.size, 'max:', 10 * 1024 * 1024);
       if (file.size > 10 * 1024 * 1024) {
         toast.error('File size should be less than 10MB');
+        // Reset the file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
       
-      setFormData(prev => ({ ...prev, file }));
+      // Determine document type
+      let documentType = 'Document';
+      if (file.type === 'application/pdf') {
+        documentType = 'PDF';
+      } else if (file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        documentType = 'Word Document';
+      } else if (file.type === 'application/vnd.ms-excel' || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        documentType = 'Excel Spreadsheet';
+      } else if (file.type.startsWith('image/')) {
+        documentType = 'Image';
+      }
+      
+      console.log('Setting document type:', documentType);
+      
+      // Create a new File object to ensure it's properly handled
+      const fileToUpload = new File([file], file.name, { type: file.type });
+      
+      setFormData(prev => ({ ...prev, file: fileToUpload }));
       setFileName(file.name);
+      setFileType(documentType);
+    } else {
+      // Clear file data if no file selected
+      setFormData(prev => ({ ...prev, file: null }));
+      setFileName('');
+      setFileType('');
     }
   };
   
@@ -125,18 +180,23 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
+    console.log('File details:', formData.file?.name, formData.file?.type, formData.file?.size);
     
     try {
       if (isEditing && initialData?.id) {
+        console.log('Updating note:', initialData.id);
         await updateNote(initialData.id, formData);
         toast.success('Note updated successfully!');
         navigate(`/notes/${initialData.id}`);
       } else {
+        console.log('Creating new note');
         await createNote(formData);
         toast.success('Note created successfully!');
         navigate('/notes');
       }
     } catch (error: any) {
+      console.error('Form submission error:', error);
       toast.error(error.response?.data?.error || 'Failed to save note');
     }
   };
@@ -296,7 +356,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
         
         <div className="mb-6">
           <label htmlFor="file" className="block text-light text-sm font-bold mb-2 flex items-center">
-            <FaUpload className="text-blue-400 mr-1" /> Upload PDF (Optional)
+            <FaUpload className="text-blue-400 mr-1" /> Upload Document (Optional)
           </label>
           
           <div className="flex items-center">
@@ -307,15 +367,27 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
               type="file"
               id="file"
               name="file"
+              ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept=".pdf"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.bmp,.webp"
             />
-            <span className="ml-3 text-sm text-light-darker">
-              {fileName || (initialData?.fileUrl ? 'Current file will be kept' : 'No file chosen')}
+            <span className="ml-3 text-sm text-light-darker flex items-center">
+              {fileName ? (
+                <>
+                  {fileType === 'PDF' && <FaFilePdf className="text-red-500 mr-2" />}
+                  {fileType === 'Word Document' && <FaFileWord className="text-blue-500 mr-2" />}
+                  {fileType === 'Excel Spreadsheet' && <FaFileExcel className="text-green-500 mr-2" />}
+                  {fileType === 'Image' && <FaFileImage className="text-purple-500 mr-2" />}
+                  {fileType === 'Document' && <FaFile className="text-gray-400 mr-2" />}
+                  {fileType}: {fileName}
+                </>
+              ) : (
+                initialData?.fileUrl ? 'Current file will be kept' : 'No file chosen'
+              )}
             </span>
           </div>
-          <p className="text-xs text-accent mt-1">Max file size: 10MB. Only PDF files allowed.</p>
+          <p className="text-xs text-accent mt-1">Max file size: 10MB. Supported formats: PDF, Word, Excel, and Images.</p>
         </div>
         
         <div className="flex justify-between">

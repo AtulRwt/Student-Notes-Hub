@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FaExternalLinkAlt, FaStar, FaRegStar, FaEdit, FaTrash, FaDownload, FaBookOpen, FaGraduationCap } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaStar, FaRegStar, FaEdit, FaTrash, FaDownload, FaBookOpen, FaGraduationCap,
+  FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { useNotesStore } from '../store/notesStore';
 import { useAuthStore } from '../store/authStore';
 import { formatDate } from '../utils/formatDate';
 import CommentSection from '../components/notes/CommentSection';
+import FileViewer from '../components/files/FileViewer';
 
 // Course data with appropriate semester counts
 const COURSES = {
@@ -82,6 +84,30 @@ const NoteDetailPage = () => {
     if (!courseId || !COURSES[courseId as keyof typeof COURSES]) return null;
     
     return COURSES[courseId as keyof typeof COURSES];
+  };
+  
+  // Function to get file info and make absolute URL
+  const getFileInfo = (fileUrl: string | null) => {
+    if (!fileUrl) return { type: 'unknown', icon: FaFile, label: 'File', color: 'text-gray-400', absoluteUrl: null };
+    
+    const fileExt = fileUrl.split('.').pop()?.toLowerCase();
+    
+    // Convert to absolute URL if needed
+    const absoluteUrl = fileUrl.startsWith('http')
+      ? fileUrl
+      : `http://localhost:5000${fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`}`;
+    
+    if (fileExt === 'pdf') {
+      return { type: 'pdf', icon: FaFilePdf, label: 'PDF', color: 'text-red-500', absoluteUrl };
+    } else if (['doc', 'docx'].includes(fileExt || '')) {
+      return { type: 'word', icon: FaFileWord, label: 'Word', color: 'text-blue-500', absoluteUrl };
+    } else if (['xls', 'xlsx'].includes(fileExt || '')) {
+      return { type: 'excel', icon: FaFileExcel, label: 'Excel', color: 'text-green-500', absoluteUrl };
+    } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt || '')) {
+      return { type: 'image', icon: FaFileImage, label: 'Image', color: 'text-purple-500', absoluteUrl };
+    } else {
+      return { type: 'unknown', icon: FaFile, label: 'File', color: 'text-gray-400', absoluteUrl };
+    }
   };
   
   // Loading state
@@ -194,15 +220,24 @@ const NoteDetailPage = () => {
         
         <div className="flex flex-wrap gap-4 mb-6">
           {currentNote.fileUrl && (
-            <a
-              href={currentNote.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center bg-red-500/20 text-red-400 px-4 py-2 rounded-md hover:bg-red-500/30 transition-colors"
-              download
-            >
-              <FaDownload className="mr-2" /> Download PDF
-            </a>
+            <>
+              <FileViewer fileUrl={currentNote.fileUrl} />
+              
+              {(() => {
+                const fileInfo = getFileInfo(currentNote.fileUrl);
+                return (
+                  <a
+                    href={fileInfo.absoluteUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center ${fileInfo.color} px-4 py-2 rounded-md hover:opacity-80 transition-colors`}
+                    download
+                  >
+                    <fileInfo.icon className="mr-2" /> Download {fileInfo.label}
+                  </a>
+                );
+              })()}
+            </>
           )}
           
           {currentNote.externalUrl && (
