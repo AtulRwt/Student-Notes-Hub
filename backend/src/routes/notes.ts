@@ -5,6 +5,8 @@ import path from 'path';
 import multer from 'multer';
 import { prisma } from '../index';
 import { auth } from '../middleware/auth';
+import { geminiService } from '../services/ai/gemini';
+import crypto from 'crypto';
 
 export const notesRouter = express.Router();
 
@@ -768,5 +770,97 @@ notesRouter.post('/:id/comments', auth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Add comment error:', error);
     res.status(500).json({ error: 'Failed to create comment' });
+  }
+});
+
+// Summarize a note using AI - now user-specific
+notesRouter.get('/:id/summarize', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    // Check if note exists
+    const note = await prisma.note.findUnique({
+      where: { id }
+    });
+
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+
+    // Check if the note has a file
+    if (!note.fileUrl) {
+      return res.status(400).json({ error: 'Note has no file to summarize' });
+    }
+
+    // Check if user already has a summary for this note
+    const existingSummary = await prisma.$queryRaw`
+      SELECT * FROM "NoteSummary" 
+      WHERE "noteId" = ${id} AND "userId" = ${userId}
+      LIMIT 1
+    `;
+
+    // If summary exists, return it without regenerating
+    if (existingSummary && Array.isArray(existingSummary) && existingSummary.length > 0) {
+      return res.json({ summary: existingSummary[0].content });
+    }
+
+    // Extract file path from URL
+    const fileName = note.fileUrl.split('/').pop();
+    if (!fileName) {
+      return res.status(400).json({ error: 'Invalid file URL' });
+    }
+
+    // Log info for debugging
+    console.log('File URL:', note.fileUrl);
+    console.log('Extracted filename:', fileName);
+    
+    // Get upload directory - use path.join for better path handling
+    const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../../../uploads');
+    console.log('Upload directory:', uploadDir);
+
+    // Construct absolute file path
+    const filePath = path.join(uploadDir, fileName);
+    console.log('Attempting to access file at:', filePath);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.error('File not found at path:', filePath);
+      
+      // Try alternative path construction as fallback
+      const altPath = path.join(process.cwd(), 'uploads', fileName);
+      console.log('Trying alternative path:', altPath);
+      
+      if (fs.existsSync(altPath)) {
+        console.log('File found at alternative path');
+        // Generate summary using Gemini API
+        const summary = await geminiService.summarizeFile(altPath);
+        
+        // Store the summary in the database as user-specific
+        await prisma.$executeRaw`
+          INSERT INTO "NoteSummary" ("id", "content", "noteId", "userId", "createdAt", "updatedAt")
+          VALUES (${crypto.randomUUID()}, ${summary}, ${id}, ${userId}, NOW(), NOW())
+        `;
+        
+        return res.json({ summary: summary });
+      }
+      
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Generate summary using Gemini API
+    console.log(`Generating summary for file: ${filePath}`);
+    const summary = await geminiService.summarizeFile(filePath);
+
+    // Store the summary in the database as user-specific
+    await prisma.$executeRaw`
+      INSERT INTO "NoteSummary" ("id", "content", "noteId", "userId", "createdAt", "updatedAt")
+      VALUES (${crypto.randomUUID()}, ${summary}, ${id}, ${userId}, NOW(), NOW())
+    `;
+
+    return res.json({ summary: summary });
+  } catch (error) {
+    console.error('Error summarizing note:', error);
+    return res.status(500).json({ error: 'Failed to summarize note: ' + (error instanceof Error ? error.message : 'Unknown error') });
   }
 }); 

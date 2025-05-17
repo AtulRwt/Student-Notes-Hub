@@ -334,6 +334,17 @@ export const notesAPI = {
       console.error('Error finding suggested users:', error);
       return [];
     }
+  },
+
+  // Get AI-generated summary of a note
+  getSummary: async (id: string): Promise<{ summary: string }> => {
+    try {
+      const response = await api.get<{ summary: string }>(`/notes/${id}/summarize`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting note summary:', error.response?.data || error.message);
+      throw error;
+    }
   }
 };
 
