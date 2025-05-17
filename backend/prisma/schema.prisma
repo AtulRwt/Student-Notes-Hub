@@ -25,6 +25,7 @@ model User {
   notes        Note[]
   favorites    Favorite[]
   comments     Comment[]
+  summaries    NoteSummary[]
   // New fields for follow system
   followers    Follow[]            @relation("follower")
   following    Follow[]            @relation("following")
@@ -51,13 +52,14 @@ model UserSettings {
 }
 
 model Note {
-  id          String     @id @default(uuid())
+  id          String       @id @default(uuid())
   title       String
   description String
   fileUrl     String?
   externalUrl String?
   semester    String
   courseId    String?
+  aiSummary   String?    // AI-generated summary of the note content (legacy)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   userId      String
@@ -65,6 +67,26 @@ model Note {
   tags        NoteTags[]
   favorites   Favorite[]
   comments    Comment[]
+  summaries   NoteSummary[] // Relation to user-specific summaries
+}
+
+// New model for user-specific note summaries
+model NoteSummary {
+  id        String   @id @default(uuid())
+  content   String   // The AI-generated summary content
+  noteId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Unique constraint to ensure one summary per user per note
+  @@unique([noteId, userId])
+  @@index([noteId])
+  @@index([userId])
 }
 
 model Tag {

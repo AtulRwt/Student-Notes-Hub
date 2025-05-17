@@ -53,6 +53,7 @@ export interface Note {
   semester: string;
   courseId?: string;
   course?: Course;
+  aiSummary?: string;
   createdAt: string;
   updatedAt: string;
   userId: string;

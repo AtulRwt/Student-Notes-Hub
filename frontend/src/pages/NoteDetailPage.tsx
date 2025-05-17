@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { formatDate } from '../utils/formatDate';
 import CommentSection from '../components/notes/CommentSection';
 import FileViewer from '../components/files/FileViewer';
+import NoteSummary from '../components/notes/NoteSummary';
 
 // Course data with appropriate semester counts
 const COURSES = {
@@ -205,7 +206,16 @@ const NoteDetailPage = () => {
           </div>
         )}
         
-        <p className="text-light-darker mb-6 whitespace-pre-line">{currentNote.description}</p>
+        <div className="mb-6">
+          <p className="text-light-darker whitespace-pre-wrap">{currentNote.description}</p>
+        </div>
+        
+        {/* AI Summary - only show for notes with files */}
+        {currentNote.fileUrl && (
+          <NoteSummary 
+            noteId={currentNote.id} 
+          />
+        )}
         
         <div className="flex flex-wrap gap-2 mb-6">
           {currentNote.tags && currentNote.tags.map((tag) => (
