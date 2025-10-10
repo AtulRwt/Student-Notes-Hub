@@ -99,22 +99,24 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
   },
 
   fetchOnlineUsers: async () => {
-    set(state => ({ isLoading: !state.onlineData, error: null }));
+    // set loading true only if we don't already have data; avoid unused param by using get()
+    set({ isLoading: !get().onlineData, error: null });
     try {
       const data = await analyticsAPI.getOnlineUsers();
-      set({ 
-        onlineData: data, 
+      set({
+        onlineData: data,
         isLoading: false,
         lastUpdated: new Date()
       });
     } catch (error: any) {
       console.error('Error fetching online users:', error);
-      set(state => ({ 
-        isLoading: false, 
-        error: error.response?.data?.error || 'Failed to fetch online users' 
-      }));
+      set({
+        isLoading: false,
+        error: error.response?.data?.error || 'Failed to fetch online users'
+      });
     }
   },
+
 
   trackUserAction: async (action: string) => {
     const user = useAuthStore.getState().user;

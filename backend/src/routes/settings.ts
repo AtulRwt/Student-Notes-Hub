@@ -4,18 +4,6 @@ import { prisma } from '../index';
 import { auth } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 
-// Extend the Express Request type to include the user property
-declare global {
-  namespace Express {
-    interface Request {
-      user: {
-        id: string;
-        email: string;
-      };
-    }
-  }
-}
-
 export const settingsRouter = express.Router();
 
 // All settings routes require authentication
@@ -55,6 +43,10 @@ const securitySettingsSchema = z.object({
 // Get all user settings
 settingsRouter.get('/', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
     const userId = req.user.id;
     
     // Get user settings from database
@@ -104,6 +96,10 @@ settingsRouter.get('/', async (req, res) => {
 // Update account settings
 settingsRouter.patch('/account', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
     const userId = req.user.id;
     const validationResult = accountSettingsSchema.safeParse(req.body);
     
@@ -210,6 +206,10 @@ settingsRouter.patch('/account', async (req, res) => {
 // Update notification settings
 settingsRouter.patch('/notifications', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
     const userId = req.user.id;
     const validationResult = notificationSettingsSchema.safeParse(req.body);
     
@@ -250,6 +250,10 @@ settingsRouter.patch('/notifications', async (req, res) => {
 // Update appearance settings
 settingsRouter.patch('/appearance', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
     const userId = req.user.id;
     const validationResult = appearanceSettingsSchema.safeParse(req.body);
     
@@ -292,6 +296,10 @@ settingsRouter.patch('/appearance', async (req, res) => {
 // Update security settings
 settingsRouter.patch('/security', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
     const userId = req.user.id;
     const validationResult = securitySettingsSchema.safeParse(req.body);
     

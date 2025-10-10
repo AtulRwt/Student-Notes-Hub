@@ -154,20 +154,20 @@ const ProfilePage = () => {
         if (JSON.stringify(user) !== JSON.stringify(response.data)) {
           // Update the user in the auth store
           setUser({
-            ...user, 
+            ...user,
             ...response.data,
             _count: {
               notes: response.data._count.notes || 0,
               followers: response.data._count.followers || 0,
-              following: response.data._count.following || 0
-            }
+              following: response.data._count.following || 0,
+            },
           });
           console.log("Profile refreshed with changes:", response.data);
         } else {
           console.log("Profile refresh: no changes detected");
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error refreshing user profile:', err);
       // Stop further periodic refreshes on auth errors
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
@@ -177,14 +177,6 @@ const ProfilePage = () => {
       }
     }
   };
-  
-  if (isLoadingNotes) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <LoadingSkeleton type="profile" />
-      </div>
-    );
-  }
 
   if (error || !user) {
     return (

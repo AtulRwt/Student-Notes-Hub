@@ -29,13 +29,11 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
   const [followStatus, setFollowStatus] = useState({
     following: false,
   });
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadRelationship = async () => {
       if (!user.id) return;
-      
-      setIsLoading(true);
+
       try {
         const relationshipStatus = await checkRelationship(user.id);
         setConnectionStatus({
@@ -48,8 +46,6 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
         });
       } catch (error) {
         console.error('Error checking relationship status:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -96,21 +92,21 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
             size={sizeConfig.avatar as any}
           />
         </Link>
-        
+
         <div className="ml-3 flex-1">
-          <Link 
-            to={`/profile/${user.id}`} 
+          <Link
+            to={`/profile/${user.id}`}
             className={`${sizeConfig.name} hover:text-purple-400 transition-colors`}
           >
             {user.name}
           </Link>
-          
+
           {user.bio && (
             <p className={`${sizeConfig.bio} text-accent line-clamp-1`}>
               {user.bio}
             </p>
           )}
-          
+
           {user._count && (
             <p className="text-xs text-accent mt-1">
               {user._count.notes} notes · {user._count.followers} followers
@@ -118,9 +114,9 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
           )}
         </div>
       </div>
-      
+
       <div className={`${sizeConfig.buttons}`}>
-        <ConnectButton 
+        <ConnectButton
           userId={user.id}
           initialStatus={connectionStatus}
           onStatusChange={(newStatus) => {
@@ -128,9 +124,9 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
           }}
           size={sizeConfig.buttonSize}
         />
-        
+
         {connectionStatus.connected && (
-          <FollowButton 
+          <FollowButton
             userId={user.id}
             initialFollowing={followStatus.following}
             onStatusChange={(following) => {

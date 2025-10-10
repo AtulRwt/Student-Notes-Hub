@@ -2,7 +2,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { JSDOM } from 'jsdom';
 import { PDFExtract } from 'pdf.js-extract';
 import mammoth from 'mammoth';
 
@@ -11,6 +10,8 @@ dotenv.config();
 
 // Initialize the Google Generative AI client
 const apiKey = process.env.GEMINI_API_KEY || '';
+// Configure fallback summary length (characters)
+const FALLBACK_MAX_CHARS = Number(process.env.GEMINI_FALLBACK_MAX_CHARS || 1200);
 
 // Enhanced debugging for API key issues
 console.log('ENV DEBUG: First 5 chars of API key:', apiKey.substring(0, 5));
@@ -27,8 +28,8 @@ if (!apiKey || isPlaceholder) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Default model to use for summarization
-const MODEL_NAME = "gemini-1.5-flash";
+// Default model to use for summarization (override via env)
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 interface PDFContent {
   str: string;
@@ -41,13 +42,10 @@ interface PDFPage {
 }
 
 export class GeminiService {
-  private model;
   private pdfExtract;
   private apiKeyValid: boolean;
   
   constructor() {
-    // Initialize the model
-    this.model = genAI.getGenerativeModel({ model: MODEL_NAME });
     this.pdfExtract = new PDFExtract();
     this.apiKeyValid = !!apiKey && !isPlaceholder; // Track if we have a valid API key
   }
@@ -61,19 +59,21 @@ export class GeminiService {
     try {
       // Check if API key is valid before making the request
       if (!this.apiKeyValid) {
-        throw new Error('Invalid Gemini API key. Please replace the placeholder in your .env file with a valid API key from https://makersuite.google.com/app/apikey');
+        console.warn('Gemini summarizeText: API key invalid or missing. Returning fallback summary.');
+        return this.generateFallbackSummary(text);
       }
       
       const prompt = `Summarize the following text into key points and main ideas. Focus on academic content and key concepts:
       
 ${text}`;
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const result = await model.generateContent(prompt);
+      const textOut = result.response?.text?.() || '';
+      return textOut.toString().trim();
     } catch (error) {
       console.error('Error generating summary:', error);
-      throw new Error('Failed to generate summary: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      return this.generateFallbackSummary(text);
     }
   }
 
@@ -92,14 +92,22 @@ ${text}`;
         return fs.readFileSync(filePath, 'utf8');
       } else if (['.docx', '.doc'].includes(fileExtension)) {
         return await this.extractTextFromWord(filePath);
+      } else if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tif', '.tiff'].includes(fileExtension)) {
+        // Image formats: no OCR implemented; return a placeholder to allow fallback summarization
+        const name = path.basename(filePath);
+        console.warn(`Image file provided without OCR support: ${name}`);
+        return `Image file (${name}). Text extraction is not supported in this environment.`;
       } else if (['.ppt', '.pptx', '.xls', '.xlsx'].includes(fileExtension)) {
-        throw new Error('Office document processing not implemented for this file type');
+        console.warn(`Office document type not implemented for extraction: ${fileExtension}`);
+        return `Office document (${fileExtension}) provided. Text extraction is not implemented.`;
       } else {
-        throw new Error(`Unsupported file type: ${fileExtension}`);
+        console.warn(`Unsupported file type for extraction: ${fileExtension}`);
+        return `Unsupported file type (${fileExtension}).`;
       }
     } catch (error) {
       console.error('Error extracting text from file:', error);
-      throw new Error('Failed to extract text from file');
+      // Return empty to let caller produce a generic fallback summary instead of failing the flow
+      return '';
     }
   }
 
@@ -147,8 +155,42 @@ ${text}`;
       return await this.summarizeText(text);
     } catch (error) {
       console.error('Error summarizing file:', error);
-      throw new Error('Failed to summarize file');
+      // Fall back to a generic message if extraction or summarization fails
+      return 'Summary unavailable (AI service not configured or file could not be processed).';
     }
+  }
+
+  /**
+   * Create a lightweight fallback summary when AI is unavailable.
+   */
+  private generateFallbackSummary(text: string): string {
+    if (!text || text.trim().length === 0) {
+      return 'Summary unavailable (no extractable content).';
+    }
+    // Try to extract a few bullet/numbered lines if present
+    const lines = text
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0);
+    const bulletLike = lines.filter(l => /^[-•\u2022\u25CF\u25E6\u2219]|^\d+\.|^[a-zA-Z]\)/.test(l));
+    if (bulletLike.length >= 3) {
+      let out = '';
+      for (const l of bulletLike) {
+        if ((out + ' ' + l).trim().length > FALLBACK_MAX_CHARS) break;
+        out = (out ? out + ' ' : '') + l;
+      }
+      return `Summary (fallback): ${out}${bulletLike.join(' ').length > out.length ? '…' : ''}`;
+    }
+    // Otherwise progressively add sentences until limit
+    const sentences = text
+      .replace(/\s+/g, ' ')
+      .match(/[^.!?]+[.!?]/g) || [text.trim()];
+    let composed = '';
+    for (const s of sentences) {
+      if ((composed + ' ' + s).trim().length > FALLBACK_MAX_CHARS) break;
+      composed = (composed ? composed + ' ' : '') + s.trim();
+    }
+    return `Summary (fallback): ${composed}${text.replace(/\s+/g, ' ').length > composed.length ? '…' : ''}`;
   }
 }
 

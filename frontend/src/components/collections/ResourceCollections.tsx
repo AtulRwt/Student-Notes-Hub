@@ -23,8 +23,8 @@ const ResourceCollections = ({ user, onCreateCollection }: ResourceCollectionsPr
         name: user.name
       },
       notes: [
-        { id: '1', note: { id: '1', title: 'Introduction to Neural Networks', description: 'Basics of neural networks and deep learning', fileUrl: null, externalUrl: null, semester: 'Sem 3', resourceType: 'lecture_notes', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } },
-        { id: '2', note: { id: '2', title: 'Reinforcement Learning', description: 'Introduction to reinforcement learning algorithms', fileUrl: null, externalUrl: null, semester: 'Sem 3', resourceType: 'lecture_notes', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } }
+        { id: '1', note: { id: '1', title: 'Introduction to Neural networks', description: 'Basics of neural networks and deep learning', fileUrl: null, externalUrl: null, semester: 'Sem 3', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } },
+        { id: '2', note: { id: '2', title: 'Reinforcement Learning', description: 'Introduction to reinforcement learning algorithms', fileUrl: null, externalUrl: null, semester: 'Sem 3', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } }
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -40,7 +40,7 @@ const ResourceCollections = ({ user, onCreateCollection }: ResourceCollectionsPr
         name: user.name
       },
       notes: [
-        { id: '3', note: { id: '3', title: 'SQL Basics', description: 'Introduction to SQL queries', fileUrl: null, externalUrl: null, semester: 'Sem 2', resourceType: 'lecture_notes', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } }
+        { id: '3', note: { id: '3', title: 'SQL Basics', description: 'Introduction to SQL queries', fileUrl: null, externalUrl: null, semester: 'Sem 2', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } }
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -56,9 +56,9 @@ const ResourceCollections = ({ user, onCreateCollection }: ResourceCollectionsPr
         name: user.name
       },
       notes: [
-        { id: '4', note: { id: '4', title: 'Data Structures Final 2022', description: 'Past exam with solutions', fileUrl: null, externalUrl: null, semester: 'Sem 2', resourceType: 'past_exam', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } },
-        { id: '5', note: { id: '5', title: 'Algorithms Midterm', description: 'Practice problems for algorithms', fileUrl: null, externalUrl: null, semester: 'Sem 3', resourceType: 'past_exam', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } },
-        { id: '6', note: { id: '6', title: 'Network Security Cheat Sheet', description: 'Key concepts for the exam', fileUrl: null, externalUrl: null, semester: 'Sem 4', resourceType: 'study_guide', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } }
+        { id: '4', note: { id: '4', title: 'Data Structures Final 2022', description: 'Past exam with solutions', fileUrl: null, externalUrl: null, semester: 'Sem 2', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } },
+        { id: '5', note: { id: '5', title: 'Algorithms Midterm', description: 'Practice problems for algorithms', fileUrl: null, externalUrl: null, semester: 'Sem 3', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } },
+        { id: '6', note: { id: '6', title: 'Network Security Cheat Sheet', description: 'Key concepts for the exam', fileUrl: null, externalUrl: null, semester: 'Sem 4', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user.id, user: { id: user.id, name: user.name }, tags: [] } }
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

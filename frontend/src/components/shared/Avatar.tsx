@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { API_BASE_URL, DEFAULT_AVATAR } from '../../config';
+import { API_BASE_URL } from '../../config';
 
 interface AvatarProps {
   src: string | null | undefined;
@@ -61,7 +61,7 @@ const Avatar = ({ src, alt, size = 'md', className = '' }: AvatarProps) => {
           src={imageSrc}
           alt={alt}
           className="w-full h-full object-cover object-center"
-          onError={(e) => {
+          onError={() => {
             console.error('Image failed to load:', imageSrc);
             setImageError(true);
           }}
