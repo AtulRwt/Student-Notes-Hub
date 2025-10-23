@@ -182,4 +182,80 @@ model Feedback {
   emailTo   String   @default("studentnoteshub@gmail.com")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-} 
+}
+
+// Chat System Models
+model Chat {
+  id          String        @id @default(uuid())
+  name        String?       // For group chats
+  type        String        @default("direct") // direct or group
+  createdBy   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  members     ChatMember[]
+  messages    Message[]
+  
+  @@index([createdAt])
+}
+
+model ChatMember {
+  id            String    @id @default(uuid())
+  chatId        String
+  userId        String
+  role          String    @default("member") // admin or member
+  joinedAt      DateTime  @default(now())
+  lastRead      DateTime? // Last time user read messages
+  mutedUntil    DateTime? // If user muted the chat
+  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  chatId      String
+  senderId    String
+  content     String?
+  type        String    @default("text") // text, image, file
+  fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+  replyTo     String?   // ID of message being replied to
+  edited      Boolean   @default(false)
+  deleted     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  readBy      MessageRead[]
+  reactions   MessageReaction[]
+  
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FaExternalLinkAlt, FaStar, FaRegStar, FaEdit, FaTrash, FaDownload, FaBookOpen, FaGraduationCap,
-  FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile } from 'react-icons/fa';
+  FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaShare } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { useNotesStore } from '../store/notesStore';
 import { useAuthStore } from '../store/authStore';
@@ -9,6 +9,7 @@ import { formatDate } from '../utils/formatDate';
 import CommentSection from '../components/notes/CommentSection';
 import FileViewer from '../components/files/FileViewer';
 import NoteSummary from '../components/notes/NoteSummary';
+import ShareNoteModal from '../components/notes/ShareNoteModal';
 
 // Course data with appropriate semester counts
 const COURSES = {
@@ -45,6 +46,7 @@ const NoteDetailPage = () => {
   const { currentNote, fetchNoteById, toggleFavorite, deleteNote, isLoading, error } = useNotesStore();
   const { user, isAuthenticated } = useAuthStore();
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   
   useEffect(() => {
     if (id) {
@@ -150,17 +152,27 @@ const NoteDetailPage = () => {
           
           <div className="flex space-x-2">
             {isAuthenticated && (
-              <button
-                onClick={handleToggleFavorite}
-                className="p-2 rounded-full hover:bg-dark-lighter"
-                title="Add to favorites"
-              >
-                {currentNote._count && currentNote._count.favorites > 0 ? (
-                  <FaStar className="text-yellow-400 h-5 w-5" />
-                ) : (
-                  <FaRegStar className="text-accent h-5 w-5" />
-                )}
-              </button>
+              <>
+                <button
+                  onClick={handleToggleFavorite}
+                  className="p-2 rounded-full hover:bg-dark-lighter"
+                  title="Add to favorites"
+                >
+                  {currentNote._count && currentNote._count.favorites > 0 ? (
+                    <FaStar className="text-yellow-400 h-5 w-5" />
+                  ) : (
+                    <FaRegStar className="text-accent h-5 w-5" />
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="p-2 rounded-full hover:bg-dark-lighter"
+                  title="Share to chat"
+                >
+                  <FaShare className="text-green-400 h-5 w-5" />
+                </button>
+              </>
             )}
             
             {isOwner && (
@@ -303,8 +315,17 @@ const NoteDetailPage = () => {
           Back to Notes
         </Link>
       </div>
+      
+      {/* Share Note Modal */}
+      <ShareNoteModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        noteId={currentNote.id}
+        noteTitle={currentNote.title}
+        noteContent={currentNote.description}
+      />
     </div>
   );
 };
 
-export default NoteDetailPage; 
+export default NoteDetailPage;

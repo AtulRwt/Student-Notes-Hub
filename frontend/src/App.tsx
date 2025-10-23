@@ -22,6 +22,8 @@ import Network from './pages/Network';
 import ConnectionsPage from './pages/ConnectionsPage';
 import FeedbackPage from './pages/FeedbackPage';
 import SettingsPage from './pages/SettingsPage';
+import ChatPage from './pages/ChatPage';
+import ChatDebugPage from './pages/ChatDebugPage';
 
 // Set up React Query
 const queryClient = new QueryClient();
@@ -170,6 +172,26 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+            
+            {/* Chat page */}
+            <Route 
+              path="/chat" 
+              element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Chat Debug page */}
+            <Route 
+              path="/chat-debug" 
+              element={
+                <ProtectedRoute>
+                  <ChatDebugPage />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Settings page */}
             <Route 

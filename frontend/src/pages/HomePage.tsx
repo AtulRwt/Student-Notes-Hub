@@ -55,25 +55,26 @@ const HomePage = () => {
   }, [notes, tags, engagement]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="w-full">
+      <div className="container mx-auto px-4 py-8">
       {/* Hero Section with animation */}
-      <div className={`transform transition-all duration-1000 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} glass gradient-bg rounded-lg shadow-lg p-8 mb-12`}>
+      <div className={`transform transition-all duration-1000 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} glass gradient-bg rounded-lg shadow-lg p-6 sm:p-8 mb-12`}>
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="gradient-text text-4xl font-bold mb-4">Student Notes & Resource Sharing Hub</h1>
-          <p className="text-xl mb-8 text-light-darker">
+          <h1 className="gradient-text text-3xl sm:text-4xl md:text-5xl font-bold mb-4">Student Notes & Resource Sharing Hub</h1>
+          <p className="text-base sm:text-xl mb-6 sm:mb-8 text-light-darker">
             A platform for students to share and discover academic resources, notes, and study materials
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/notes" className="gradient-border btn btn-secondary py-3 px-6 text-lg flex items-center justify-center hover:scale-105 transition-transform">
+            <Link to="/notes" className="gradient-border btn btn-secondary py-3 px-6 text-base sm:text-lg flex items-center justify-center hover:scale-105 transition-transform rounded-lg">
               <FaSearch className="mr-2 text-blue-400" /> Browse Notes
             </Link>
             
             {isAuthenticated ? (
-              <Link to="/notes/create" className="gradient-border bg-dark py-3 px-6 text-lg flex items-center justify-center hover:scale-105 transition-transform">
+              <Link to="/notes/create" className="gradient-border bg-dark py-3 px-6 text-base sm:text-lg flex items-center justify-center hover:scale-105 transition-transform rounded-lg">
                 <FaUpload className="mr-2 text-blue-400" /> Upload Notes
               </Link>
             ) : (
-              <Link to="/register" className="gradient-border bg-dark py-3 px-6 text-lg flex items-center justify-center hover:scale-105 transition-transform">
+              <Link to="/register" className="gradient-border bg-dark py-3 px-6 text-base sm:text-lg flex items-center justify-center hover:scale-105 transition-transform rounded-lg">
                 Get Started
               </Link>
             )}
@@ -265,6 +266,7 @@ const HomePage = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import SocialTab from '../components/social/SocialTab';
 import EditProfileForm from '../components/profile/EditProfileForm';
 import { Link } from 'react-router-dom';
+import Avatar from '../components/shared/Avatar';
 import apiClient from '../api/axios';
 import AcademicPortfolio from '../components/profile/AcademicPortfolio';
 import StudyGroups from '../components/profile/StudyGroups';
@@ -210,18 +211,19 @@ const ProfilePage = () => {
               {/* Profile Image - Positioned to overlap the cover photo */}
               <div className="absolute top-16 left-6">
                 <div className="relative">
-                  <img 
-                    src={user.profileImage || '/default-avatar.png'} 
-                    alt={user.name} 
-                    className="w-24 h-24 rounded-full object-cover border-4 border-dark shadow-lg"
+                  <Avatar 
+                    src={user.profileImage}
+                    alt={user.name}
+                    size="xl"
+                    className="border-4 border-dark shadow-lg"
                   />
                   <div className="absolute bottom-0 right-0 bg-green-500 w-4 h-4 rounded-full border-2 border-dark"></div>
                 </div>
               </div>
               
               <div className="flex flex-col md:flex-row justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold">{user.name}</h1>
+                <div className="ml-32 md:ml-0">
+                  <h1 className="text-2xl font-bold mt-10">{user.name}</h1>
                   <p className="text-light/70">{user.email}</p>
                   
                   {/* User metadata */}

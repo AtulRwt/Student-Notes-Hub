@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaBook, FaSignInAlt, FaUserPlus, FaSignOutAlt, FaUser, FaBars, FaTimes, FaUserFriends, FaNetworkWired, FaChevronDown, FaCog, FaBell, FaBookmark, FaPen, FaSlidersH, FaQuestionCircle } from 'react-icons/fa';
+import { FaBook, FaSignInAlt, FaUserPlus, FaSignOutAlt, FaUser, FaBars, FaTimes, FaUserFriends, FaNetworkWired, FaChevronDown, FaCog, FaBell, FaBookmark, FaPen, FaSlidersH, FaQuestionCircle, FaCommentAlt } from 'react-icons/fa';
 import { useAuthStore } from '../../store/authStore';
 import NotificationsButton from './NotificationsButton';
 import Avatar from '../shared/Avatar';
@@ -82,6 +82,12 @@ const Navbar = () => {
                     className="px-3 py-2 rounded-md text-sm font-medium hover:text-blue-400 transition-colors flex items-center"
                   >
                     <FaNetworkWired className="mr-1 text-purple-400" /> Connections
+                  </Link>
+                  <Link
+                    to="/chat"
+                    className="px-3 py-2 rounded-md text-sm font-medium hover:text-blue-400 transition-colors flex items-center"
+                  >
+                    <FaCommentAlt className="mr-1 text-green-400" /> Messages
                   </Link>
                   
                   {/* Enhanced Profile Dropdown */}
@@ -265,6 +271,13 @@ const Navbar = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <FaNetworkWired className="mr-1 text-purple-400" /> Connections
+                </Link>
+                <Link
+                  to="/chat"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:text-blue-400 transition-colors flex items-center"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <FaCommentAlt className="mr-1 text-green-400" /> Messages
                 </Link>
                 <div className="border-t border-dark-accent/20 my-2 pt-2">
                   <div className="flex items-center px-3 py-2">

@@ -25,7 +25,7 @@
     --color-foreground: #1f2937;
     --color-lighter: #f3f4f6;
     --color-border: #e5e7eb;
-    --color-accent: #d1d5db;
+    --color-accent: #6b7280;
   }
   
   /* Dark theme is the default */
@@ -37,14 +37,27 @@
     --color-accent: #3f3f3f;
   }
   
-  /* Apply CSS variables to elements - simplified for light mode */
+  /* Apply CSS variables to elements - comprehensive light mode */
   .light-theme body {
-    @apply bg-white;
+    @apply bg-gray-50 text-gray-900;
   }
   
-  /* Text color remains unchanged in light mode except for headings */
+  /* Text color for light mode */
   .light-theme h1, .light-theme h2, .light-theme h3 {
-    @apply text-light;
+    @apply text-gray-900;
+  }
+  
+  .light-theme p {
+    @apply text-gray-700;
+  }
+  
+  .light-theme span {
+    @apply text-gray-700;
+  }
+  
+  /* Links in light mode */
+  .light-theme a {
+    @apply text-blue-600 hover:text-blue-700;
   }
   
   /* High-contrast mode */
@@ -108,19 +121,66 @@
     @apply bg-dark-lighter rounded-lg shadow-md p-4 mb-4 text-light;
   }
   
-  /* Light theme variants - focus on input fields */
+  /* Light theme component variants */
   .light-theme .btn-secondary {
-    @apply bg-gray-100 border border-gray-300 hover:bg-gray-200;
+    @apply bg-white border border-gray-300 hover:bg-gray-100 text-gray-900;
+  }
+  
+  .light-theme .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white;
   }
   
   /* Adjust input fields for light mode */
   .light-theme .input {
-    @apply bg-gray-100 border border-gray-300 text-gray-800 focus:ring-blue-500;
+    @apply bg-white border border-gray-300 text-gray-900 focus:ring-blue-500;
   }
   
-  /* Keep cards dark in light mode */
+  /* Cards in light mode - use light background */
   .light-theme .card {
-    @apply bg-dark-lighter text-light;
+    @apply bg-white text-gray-900 border border-gray-200;
+  }
+  
+  /* Additional light theme overrides */
+  .light-theme .text-light {
+    @apply text-gray-900;
+  }
+  
+  .light-theme .text-light-darker {
+    @apply text-gray-600;
+  }
+  
+  .light-theme .text-accent {
+    @apply text-gray-500;
+  }
+  
+  .light-theme .bg-dark {
+    @apply bg-white;
+  }
+  
+  .light-theme .bg-dark-lighter {
+    @apply bg-gray-50;
+  }
+  
+  .light-theme .bg-dark-light {
+    @apply bg-gray-100;
+  }
+  
+  .light-theme .bg-dark-medium {
+    @apply bg-gray-200;
+  }
+  
+  .light-theme .border-dark-accent {
+    @apply border-gray-300;
+  }
+  
+  /* Navbar in light mode */
+  .light-theme nav.glass {
+    @apply border-gray-200;
+  }
+  
+  /* Footer in light mode */
+  .light-theme footer {
+    @apply border-gray-200;
   }
 }
 
@@ -143,17 +203,61 @@
   border-radius: 0.5rem;
 }
 
-/* Light theme glass variants - maintain dark appearance */
+/* Light theme glass variants - light appearance */
 .light-theme .glass {
-  background-color: rgba(30, 30, 30, 0.7);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .light-theme .glass-light {
-  background-color: rgba(40, 40, 40, 0.5);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(249, 250, 251, 0.9);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Light theme specific component styles */
+.light-theme .gradient-border {
+  position: relative;
+  border-radius: 0.5rem;
+}
+
+.light-theme .gradient-border::before {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+  opacity: 0.3;
+}
+
+/* Light theme hover states */
+.light-theme button:hover,
+.light-theme a:hover {
+  opacity: 0.9;
+}
+
+/* Light theme form elements */
+.light-theme input,
+.light-theme textarea,
+.light-theme select {
+  background-color: white;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
+
+.light-theme input:focus,
+.light-theme textarea:focus,
+.light-theme select:focus {
+  border-color: #3b82f6;
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Light theme placeholder text */
+.light-theme input::placeholder,
+.light-theme textarea::placeholder {
+  color: #9ca3af;
 }
 
 .gradient-text {
@@ -163,8 +267,20 @@
   color: transparent;
 }
 
+/* Ensure gradient text is visible in light mode */
+.light-theme .gradient-text {
+  background: linear-gradient(to right, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 .gradient-bg {
   background: linear-gradient(to right, rgba(30, 64, 175, 0.3), rgba(109, 40, 217, 0.3));
+}
+
+/* Light theme gradient background */
+.light-theme .gradient-bg {
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
 }
 
 .gradient-border {
@@ -185,6 +301,10 @@
 
 /* Animation utilities */
 .animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
 
@@ -261,17 +381,17 @@
   @apply bg-accent;
 }
 
-/* Light theme scrollbar - keep dark style */
+/* Light theme scrollbar - light style */
 .light-theme ::-webkit-scrollbar-track {
-  @apply bg-dark;
+  @apply bg-gray-100;
 }
 
 .light-theme ::-webkit-scrollbar-thumb {
-  @apply bg-dark-accent rounded-full;
+  @apply bg-gray-400 rounded-full;
 }
 
 .light-theme ::-webkit-scrollbar-thumb:hover {
-  @apply bg-accent;
+  @apply bg-gray-500;
 }
 
 @layer utilities {
