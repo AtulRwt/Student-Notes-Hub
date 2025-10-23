@@ -15,7 +15,7 @@ A modern web application for students to share and collaborate on educational re
 ## Tech Stack
 
 - **Frontend**: React, TypeScript, Tailwind CSS
-- **Backend**: Node.js, Express, TypeScript
+- **Backend**: Node.js, Express, TypeScript, multer, @types/multer
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: JWT-based authentication
 - **Email**: Nodemailer for feedback notifications
@@ -41,6 +41,8 @@ A modern web application for students to share and collaborate on educational re
    # Install backend dependencies
    cd backend
    npm install
+   # New: install file upload dependencies
+   npm install multer @types/multer
    # Additional dependencies for AI features (text extraction, Gemini API)
    npm install @google/generative-ai pdf.js-extract mammoth jsdom @types/jsdom
 
@@ -84,6 +86,32 @@ A modern web application for students to share and collaborate on educational re
    # Start frontend (from frontend directory)
    npm run dev
    ```
+
+### New Dependencies
+
+- Backend: `multer` (file upload middleware) and `@types/multer` (TypeScript types)
+
+### New/Updated Backend Endpoints
+
+- `POST /api/upload` — authenticated file upload. Returns JSON with `url`, `fileName`, `fileType`, `size`.
+- `DELETE /api/chat/chats/:chatId/messages` — clear all messages in a chat (members only).
+
+### Notes on File Uploads
+
+- Uploaded files are stored under `backend/uploads/` and served via `GET /uploads/*`.
+- Max file size: 10MB.
+- Allowed types: images (jpg, png, gif, webp, bmp, svg), PDF, Word (`.doc/.docx`), Excel (`.xls/.xlsx`), and text files.
+
+### Frontend Configuration
+
+Ensure the frontend points to the backend API and WebSocket URLs (defaults are used if not set):
+
+```
+VITE_API_URL=http://localhost:5000/api
+VITE_WS_URL=http://localhost:5000
+```
+
+These may already default correctly in code; set explicitly if your ports differ.
 
 ## Project Structure
 
