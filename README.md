@@ -113,6 +113,94 @@ VITE_WS_URL=http://localhost:5000
 
 These may already default correctly in code; set explicitly if your ports differ.
 
+## Chat Feature Setup
+
+Follow these steps to enable the real‑time chat, file sharing, and note sharing features.
+
+### Dependencies
+
+- **Backend**:
+  - `socket.io`
+  - `@types/socket.io`
+  - `multer`
+  - `@types/multer`
+- **Frontend**:
+  - `socket.io-client`
+
+Install manually:
+
+```bash
+# Backend
+cd backend
+npm install socket.io @types/socket.io multer @types/multer
+
+# Frontend
+cd ../frontend
+npm install socket.io-client
+```
+
+Or run the provided installer scripts from the repo root:
+
+```bash
+# macOS/Linux
+bash ./install-chat-dependencies.sh
+
+# Windows (PowerShell)
+./install-chat-dependencies.ps1
+```
+
+### Database Migration (Chat Models)
+
+Run the Prisma migration to create chat tables if you haven’t already:
+
+```bash
+cd backend
+npx prisma migrate dev --name add_chat_system
+npx prisma generate
+```
+
+### Environment Variables
+
+Backend `.env` already includes common vars. Ensure these are set as needed:
+
+```env
+PORT=5000
+UPLOAD_DIR="./uploads"
+JWT_SECRET="your-secret-key"
+DATABASE_URL="postgresql://username:password@localhost:5432/student_notes_db"
+```
+
+Frontend (optional overrides in `.env`):
+
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_WS_URL=http://localhost:5000
+```
+
+### Start Dev Servers
+
+```bash
+# In repo root
+npm run dev
+```
+
+This runs backend (Express + Socket.io) and frontend (Vite).
+
+### Verify Chat Feature
+
+- **Socket connection**: green "Connected" dot on `Messages` page.
+- **Create chat**: click "+ New Chat", search a user, send a message.
+- **File sending**: click 📎, select image/PDF/Doc/XLS, send. File appears in chat.
+- **Note sharing**: open a note → Share → select chat → message shows a clickable note card.
+- **Clear chat**: Chat settings → Clear Chat History.
+
+### Troubleshooting
+
+- If upload fails, ensure the `uploads/` directory exists at `backend/uploads/` and the server serves `/uploads/*`.
+- If Socket shows "Disconnected", verify `VITE_WS_URL` and backend `PORT` match and CORS allows your origin.
+- If Prisma errors, re‑run `npx prisma migrate dev` and `npx prisma generate` in `backend/`.
+- If file preview doesn’t render, hard refresh the frontend and re‑send the file (images open in new tab on click).
+
 ## Project Structure
 
 ```
