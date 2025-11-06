@@ -189,6 +189,11 @@ authRouter.get('/me', async (req, res) => {
     res.json({ user: userWithoutPassword });
     
   } catch (error) {
+    // Handle expired tokens explicitly to help frontend react (logout/refresh)
+    if ((error as any)?.name === 'TokenExpiredError') {
+      res.status(401).json({ error: 'token_expired' });
+      return;
+    }
     console.error('Get current user error:', error);
     res.status(401).json({ error: 'Invalid token' });
   }

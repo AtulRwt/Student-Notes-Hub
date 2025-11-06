@@ -54,6 +54,10 @@ export const auth = async (req: Request, res: Response, next: NextFunction): Pro
 
     next();
   } catch (error) {
+    if ((error as any)?.name === 'TokenExpiredError') {
+      res.status(401).json({ error: 'token_expired' });
+      return;
+    }
     console.error('Auth middleware error:', error);
     res.status(401).json({ error: 'Invalid token' });
   }

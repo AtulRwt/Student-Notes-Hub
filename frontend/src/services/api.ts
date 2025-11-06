@@ -46,6 +46,27 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auto-logout on expired/invalid token to avoid log spam and broken sessions
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const code = error?.response?.data?.error;
+    if (status === 401 && (code === 'token_expired' || code === 'Invalid token' || code === 'No token provided')) {
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth-storage');
+      } catch {}
+      if (typeof window !== 'undefined') {
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth API
 export const authAPI = {
   // Register user

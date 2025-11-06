@@ -21,4 +21,25 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Auto-logout on expired/invalid token
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const code = error?.response?.data?.error;
+    if (status === 401 && (code === 'token_expired' || code === 'Invalid token' || code === 'No token provided')) {
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth-storage');
+      } catch {}
+      if (typeof window !== 'undefined') {
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default apiClient; 
