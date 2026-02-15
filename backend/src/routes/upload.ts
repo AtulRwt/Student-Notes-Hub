@@ -1,29 +1,21 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../config/cloudinary';
 import { auth } from '../middleware/auth';
 import { geminiService } from '../services/ai/gemini';
-import fs from 'fs';
 
 const router = express.Router();
 
-// Create uploads directory if it doesn't exist
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext);
-    cb(null, `${name}-${uniqueSuffix}${ext}`);
-  }
+// Configure Cloudinary storage for multer
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'student-notes-uploads',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
+    resource_type: 'auto', // Automatically detect resource type (image, raw, video)
+  } as any,
 });
 
 const upload = multer({
@@ -31,28 +23,6 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB limit
   },
-  fileFilter: (req, file, cb) => {
-    // Accept images, PDFs, and documents (Word/Excel/OpenXML)
-    const allowedExts = ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.bmp', '.svg', '.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx'];
-    const allowedMimes = new Set([
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml',
-      'application/pdf', 'text/plain',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ]);
-
-    const ext = path.extname(file.originalname).toLowerCase();
-    const extAllowed = allowedExts.includes(ext);
-    const mimeAllowed = allowedMimes.has(file.mimetype);
-
-    if (extAllowed || mimeAllowed) {
-      return cb(null, true);
-    }
-
-    cb(new Error('Invalid file type. Only images, PDFs, and documents are allowed.'));
-  }
 });
 
 // Upload file endpoint
@@ -62,8 +32,8 @@ router.post('/', auth, upload.single('file'), async (req: Request, res: Response
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Return the file URL
-    const fileUrl = `/uploads/${req.file.filename}`;
+    // Return the Cloudinary file URL
+    const fileUrl = (req.file as any).path; // Cloudinary URL is in req.file.path
 
     res.json({
       url: fileUrl,
@@ -99,7 +69,7 @@ router.post('/extract-metadata', auth, upload.single('file'), async (req: Reques
 
     // Return metadata along with file info
     res.json({
-      url: `/uploads/${req.file.filename}`,
+      url: (req.file as any).path, // Cloudinary URL
       fileName: req.file.originalname,
       fileType: req.file.mimetype,
       size: req.file.size,
@@ -117,7 +87,7 @@ router.post('/extract-metadata', auth, upload.single('file'), async (req: Reques
     // If there's an error, still return the file info without metadata
     if (req.file) {
       res.json({
-        url: `/uploads/${req.file.filename}`,
+        url: (req.file as any).path, // Cloudinary URL
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         size: req.file.size,
