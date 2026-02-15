@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../config/cloudinary';
@@ -9,6 +11,9 @@ import { geminiService } from '../services/ai/gemini';
 import crypto from 'crypto';
 
 export const notesRouter = express.Router();
+
+// Temporary uploadDir for backward compatibility (file deletion code still uses it)
+const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'));
 
 // Configure Cloudinary storage for multer
 const storage = new CloudinaryStorage({
