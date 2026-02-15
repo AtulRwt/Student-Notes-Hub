@@ -48,7 +48,8 @@ const ChatSettings = ({ isOpen, onClose, chatId, chatName }: ChatSettingsProps) 
     if (window.confirm('Are you sure you want to clear all messages in this chat? This action cannot be undone.')) {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:5000/api/chat/chats/${chatId}/messages`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiUrl}/chat/chats/${chatId}/messages`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -112,14 +113,12 @@ const ChatSettings = ({ isOpen, onClose, chatId, chatName }: ChatSettingsProps) 
                 </div>
               </div>
               <div
-                className={`w-12 h-6 rounded-full transition-colors ${
-                  soundEnabled ? 'bg-blue-600' : 'bg-dark-accent'
-                }`}
+                className={`w-12 h-6 rounded-full transition-colors ${soundEnabled ? 'bg-blue-600' : 'bg-dark-accent'
+                  }`}
               >
                 <div
-                  className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
-                    soundEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                 />
               </div>
             </button>
@@ -143,14 +142,12 @@ const ChatSettings = ({ isOpen, onClose, chatId, chatName }: ChatSettingsProps) 
                 </div>
               </div>
               <div
-                className={`w-12 h-6 rounded-full transition-colors ${
-                  notificationsEnabled ? 'bg-blue-600' : 'bg-dark-accent'
-                }`}
+                className={`w-12 h-6 rounded-full transition-colors ${notificationsEnabled ? 'bg-blue-600' : 'bg-dark-accent'
+                  }`}
               >
                 <div
-                  className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
-                    notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                 />
               </div>
             </button>

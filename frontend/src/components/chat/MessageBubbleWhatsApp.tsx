@@ -76,7 +76,7 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
 
   // Check if message is a note share
   const isNoteShare = message.content?.startsWith('NOTE_SHARE:');
-  
+
   // Parse note data if it's a note share
   const getNoteData = () => {
     if (!isNoteShare || !message.content) return null;
@@ -95,7 +95,7 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
     if (!noteData) return null;
 
     return (
-      <div 
+      <div
         onClick={() => navigate(noteData.url)}
         className="mb-2 p-4 bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg cursor-pointer hover:border-blue-500 transition-all hover:scale-[1.02] group"
       >
@@ -121,17 +121,18 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
     if (!message.fileUrl) return null;
 
     // Helpers: absolute URL + detect type from URL when fileType missing
-    const absoluteUrl = message.fileUrl.startsWith('http') 
-      ? message.fileUrl 
-      : `http://localhost:5000${message.fileUrl.startsWith('/') ? message.fileUrl : `/${message.fileUrl}`}`;
+    const backendUrl = import.meta.env.VITE_WS_URL || 'http://localhost:5000';
+    const absoluteUrl = message.fileUrl.startsWith('http')
+      ? message.fileUrl
+      : `${backendUrl}${message.fileUrl.startsWith('/') ? message.fileUrl : `/${message.fileUrl}`}`;
 
     const detectTypeFromUrl = (url: string): string => {
       const ext = url.split('?')[0].split('#')[0].split('.').pop()?.toLowerCase();
       if (!ext) return 'application/octet-stream';
-      if (['jpg','jpeg','png','gif','bmp','webp','svg'].includes(ext)) return `image/${ext}`;
+      if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) return `image/${ext}`;
       if (ext === 'pdf') return 'application/pdf';
-      if (['doc','docx'].includes(ext)) return 'application/msword';
-      if (['xls','xlsx'].includes(ext)) return 'application/vnd.ms-excel';
+      if (['doc', 'docx'].includes(ext)) return 'application/msword';
+      if (['xls', 'xlsx'].includes(ext)) return 'application/vnd.ms-excel';
       if (ext === 'txt') return 'text/plain';
       return 'application/octet-stream';
     };
@@ -141,9 +142,9 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
     if (fileType.startsWith('image/')) {
       return (
         <div className="mb-2 rounded-lg overflow-hidden shadow-lg">
-          <img 
-            src={absoluteUrl} 
-            alt="Attachment" 
+          <img
+            src={absoluteUrl}
+            alt="Attachment"
             className="max-w-xs max-h-96 object-cover cursor-pointer hover:opacity-90 transition-opacity"
             onClick={() => window.open(absoluteUrl, '_blank')}
           />
@@ -161,8 +162,8 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
             <p className="font-semibold text-sm truncate text-light">{message.fileName || 'Document.pdf'}</p>
             <p className="text-xs text-accent">PDF Document</p>
           </div>
-          <a 
-            href={absoluteUrl} 
+          <a
+            href={absoluteUrl}
             download
             target="_blank"
             rel="noopener noreferrer"
@@ -184,8 +185,8 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
             <p className="font-semibold text-sm truncate text-light">{message.fileName || 'Document.docx'}</p>
             <p className="text-xs text-accent">Word Document</p>
           </div>
-          <a 
-            href={absoluteUrl} 
+          <a
+            href={absoluteUrl}
             download
             target="_blank"
             rel="noopener noreferrer"
@@ -207,8 +208,8 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
             <p className="font-semibold text-sm truncate text-light">{message.fileName || 'Spreadsheet.xlsx'}</p>
             <p className="text-xs text-accent">Excel Spreadsheet</p>
           </div>
-          <a 
-            href={absoluteUrl} 
+          <a
+            href={absoluteUrl}
             download
             target="_blank"
             rel="noopener noreferrer"
@@ -229,8 +230,8 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
           <p className="font-semibold text-sm truncate text-light">{message.fileName || 'File'}</p>
           <p className="text-xs text-accent">File</p>
         </div>
-        <a 
-          href={absoluteUrl} 
+        <a
+          href={absoluteUrl}
           download
           target="_blank"
           rel="noopener noreferrer"
@@ -291,11 +292,10 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
 
         {/* Message Bubble */}
         <div
-          className={`rounded-2xl px-4 py-2 ${
-            isOwn
+          className={`rounded-2xl px-4 py-2 ${isOwn
               ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-sm'
               : 'glass-light text-light rounded-bl-sm'
-          } ${message.deleted ? 'opacity-50 italic' : ''} shadow-lg relative`}
+            } ${message.deleted ? 'opacity-50 italic' : ''} shadow-lg relative`}
         >
           {/* Reply Preview */}
           {renderReplyPreview()}
@@ -361,7 +361,7 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
                 {emoji}
               </button>
             ))}
-            
+
             {/* Reply */}
             <button
               onClick={handleReply}
@@ -377,14 +377,14 @@ const MessageBubbleWhatsApp = ({ message, isOwn, showAvatar, onReply, onForward 
       {/* Context Menu */}
       {showContextMenu && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setShowContextMenu(false)}
           />
           <div
             className="fixed z-50 glass rounded-lg shadow-2xl py-2 min-w-[200px] border border-dark-accent/30"
-            style={{ 
-              left: `${contextMenuPos.x}px`, 
+            style={{
+              left: `${contextMenuPos.x}px`,
               top: `${contextMenuPos.y}px`,
               transform: 'translate(-50%, 0)'
             }}

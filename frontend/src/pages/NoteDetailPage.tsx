@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FaExternalLinkAlt, FaStar, FaRegStar, FaEdit, FaTrash, FaDownload, FaBookOpen, FaGraduationCap,
-  FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaShare } from 'react-icons/fa';
+import {
+  FaExternalLinkAlt, FaStar, FaRegStar, FaEdit, FaTrash, FaDownload, FaBookOpen, FaGraduationCap,
+  FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaShare
+} from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { useNotesStore } from '../store/notesStore';
 import { useAuthStore } from '../store/authStore';
@@ -24,7 +26,7 @@ const COURSES = {
   'ba-soc': { name: 'B.A. Sociology', code: 'BA-SOC', department: 'Arts', color: '#dc2626' },
   'bba': { name: 'BBA (Bachelor of Business Admin.)', code: 'BBA', department: 'Business', color: '#8b5cf6' },
   'bca': { name: 'BCA (Bachelor of Computer Apps.)', code: 'BCA', department: 'Computer Applications', color: '#6366f1' },
-  
+
   // Postgraduate Courses
   'msc-cs': { name: 'M.Sc. Computer Science', code: 'MSC-CS', department: 'Science', color: '#3b82f6' },
   'mtech-cs': { name: 'M.Tech. Computer Science', code: 'MTECH-CS', department: 'Engineering', color: '#0ea5e9' },
@@ -47,13 +49,13 @@ const NoteDetailPage = () => {
   const { user, isAuthenticated } = useAuthStore();
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  
+
   useEffect(() => {
     if (id) {
       fetchNoteById(id);
     }
   }, [id, fetchNoteById]);
-  
+
   const handleToggleFavorite = () => {
     if (isAuthenticated && id) {
       toggleFavorite(id);
@@ -61,15 +63,15 @@ const NoteDetailPage = () => {
       toast.error('You need to be logged in to favorite notes');
     }
   };
-  
+
   const handleDeleteConfirm = () => {
     setDeleteConfirm(true);
   };
-  
+
   const handleDeleteCancel = () => {
     setDeleteConfirm(false);
   };
-  
+
   const handleDeleteNote = async () => {
     if (id) {
       try {
@@ -81,25 +83,26 @@ const NoteDetailPage = () => {
       }
     }
   };
-  
+
   // Get course information if available
   const getCourseInfo = (courseId?: string) => {
     if (!courseId || !COURSES[courseId as keyof typeof COURSES]) return null;
-    
+
     return COURSES[courseId as keyof typeof COURSES];
   };
-  
+
   // Function to get file info and make absolute URL
   const getFileInfo = (fileUrl: string | null) => {
     if (!fileUrl) return { type: 'unknown', icon: FaFile, label: 'File', color: 'text-gray-400', absoluteUrl: null };
-    
+
     const fileExt = fileUrl.split('.').pop()?.toLowerCase();
-    
+
     // Convert to absolute URL if needed
+    const backendUrl = import.meta.env.VITE_WS_URL || 'http://localhost:5000';
     const absoluteUrl = fileUrl.startsWith('http')
       ? fileUrl
-      : `http://localhost:5000${fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`}`;
-    
+      : `${backendUrl}${fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`}`;
+
     if (fileExt === 'pdf') {
       return { type: 'pdf', icon: FaFilePdf, label: 'PDF', color: 'text-red-500', absoluteUrl };
     } else if (['doc', 'docx'].includes(fileExt || '')) {
@@ -112,7 +115,7 @@ const NoteDetailPage = () => {
       return { type: 'unknown', icon: FaFile, label: 'File', color: 'text-gray-400', absoluteUrl };
     }
   };
-  
+
   // Loading state
   if (isLoading) {
     return (
@@ -123,7 +126,7 @@ const NoteDetailPage = () => {
       </div>
     );
   }
-  
+
   // Error state
   if (error || !currentNote) {
     return (
@@ -137,19 +140,19 @@ const NoteDetailPage = () => {
       </div>
     );
   }
-  
+
   // Check if user is the owner of the note
   const isOwner = user && currentNote.userId === user.id;
-  
+
   // Get course information
   const courseInfo = getCourseInfo(currentNote.courseId);
-  
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="glass rounded-lg p-6 mb-6">
         <div className="flex justify-between items-start mb-4">
           <h1 className="text-2xl font-bold gradient-text">{currentNote.title}</h1>
-          
+
           <div className="flex space-x-2">
             {isAuthenticated && (
               <>
@@ -164,7 +167,7 @@ const NoteDetailPage = () => {
                     <FaRegStar className="text-accent h-5 w-5" />
                   )}
                 </button>
-                
+
                 <button
                   onClick={() => setShowShareModal(true)}
                   className="p-2 rounded-full hover:bg-dark-lighter"
@@ -174,7 +177,7 @@ const NoteDetailPage = () => {
                 </button>
               </>
             )}
-            
+
             {isOwner && (
               <>
                 <Link
@@ -184,7 +187,7 @@ const NoteDetailPage = () => {
                 >
                   <FaEdit className="text-blue-400 h-5 w-5" />
                 </Link>
-                
+
                 <button
                   onClick={handleDeleteConfirm}
                   className="p-2 rounded-full hover:bg-dark-lighter"
@@ -196,10 +199,10 @@ const NoteDetailPage = () => {
             )}
           </div>
         </div>
-        
+
         {/* Course and Semester Information */}
         {courseInfo && (
-          <div 
+          <div
             className="flex items-center mb-4 p-3 rounded-md"
             style={{ backgroundColor: `${courseInfo.color}20` }}
           >
@@ -217,34 +220,34 @@ const NoteDetailPage = () => {
             </div>
           </div>
         )}
-        
+
         <div className="mb-6">
           <p className="text-light-darker whitespace-pre-wrap">{currentNote.description}</p>
         </div>
-        
+
         {/* AI Summary - only show for notes with files */}
         {currentNote.fileUrl && (
-          <NoteSummary 
-            noteId={currentNote.id} 
+          <NoteSummary
+            noteId={currentNote.id}
           />
         )}
-        
+
         <div className="flex flex-wrap gap-2 mb-6">
           {currentNote.tags && currentNote.tags.map((tag) => (
-            <span 
-              key={tag.tagId} 
+            <span
+              key={tag.tagId}
               className="bg-dark-lighter text-light-darker text-sm rounded-full px-3 py-1"
             >
               {tag.tag.name}
             </span>
           ))}
         </div>
-        
+
         <div className="flex flex-wrap gap-4 mb-6">
           {currentNote.fileUrl && (
             <>
               <FileViewer fileUrl={currentNote.fileUrl} />
-              
+
               {(() => {
                 const fileInfo = getFileInfo(currentNote.fileUrl);
                 return (
@@ -261,7 +264,7 @@ const NoteDetailPage = () => {
               })()}
             </>
           )}
-          
+
           {currentNote.externalUrl && (
             <a
               href={currentNote.externalUrl}
@@ -273,7 +276,7 @@ const NoteDetailPage = () => {
             </a>
           )}
         </div>
-        
+
         <div className="flex justify-between items-center text-sm text-accent border-t border-dark-accent/30 pt-4">
           <div>
             <p>Uploaded by: <span className="font-semibold text-light">{currentNote.user.name}</span></p>
@@ -281,14 +284,14 @@ const NoteDetailPage = () => {
           <p>Uploaded on: {formatDate(new Date(currentNote.createdAt))}</p>
         </div>
       </div>
-      
+
       {/* Delete confirmation modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="glass rounded-lg p-6 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4 gradient-text">Delete Note</h3>
             <p className="mb-6 text-light-darker">Are you sure you want to delete this note? This action cannot be undone.</p>
-            
+
             <div className="flex justify-end space-x-4">
               <button
                 onClick={handleDeleteCancel}
@@ -306,16 +309,16 @@ const NoteDetailPage = () => {
           </div>
         </div>
       )}
-      
+
       {/* Comments section */}
       <CommentSection noteId={currentNote.id} comments={currentNote.comments || []} />
-      
+
       <div className="mt-6">
         <Link to="/notes" className="gradient-border bg-dark px-4 py-2 rounded-md font-medium hover:bg-dark-light transition-colors">
           Back to Notes
         </Link>
       </div>
-      
+
       {/* Share Note Modal */}
       <ShareNoteModal
         isOpen={showShareModal}
