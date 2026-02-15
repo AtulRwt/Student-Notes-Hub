@@ -29,7 +29,14 @@ const storage = new CloudinaryStorage({
 
     // 3. Determine resource type
     const isImage = file.mimetype.startsWith('image/');
-    const resourceType = isImage ? 'image' : 'raw';
+    const isPdf = file.mimetype === 'application/pdf';
+
+    // PDFs should be 'auto' (treated as viewable documents by Cloudinary)
+    // Images are 'image'
+    // Other docs (Word, Excel) MUST be 'raw'
+    let resourceType = 'raw';
+    if (isImage) resourceType = 'image';
+    if (isPdf) resourceType = 'auto';
 
     // 4. Determine if we should force download (Office docs) vs view inline (PDF/Images)
     const shouldForceDownload = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExtension);
