@@ -4,6 +4,8 @@ A modern web application for students to share and collaborate on educational re
 
 ## Sample Image
 
+![Sample Image](./image.png)
+
 
 ## Features
 
