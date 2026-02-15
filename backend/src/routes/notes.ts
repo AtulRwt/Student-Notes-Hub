@@ -27,7 +27,10 @@ const storage = new CloudinaryStorage({
       folder: 'student-notes-uploads',
       allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
       resource_type: resourceType,
-      format: file.mimetype === 'application/pdf' ? 'pdf' : undefined,
+      format: file.originalname.split('.').pop()?.toLowerCase(),
+      flags: 'attachment',
+      use_filename: true,
+      unique_filename: true,
     };
   },
 } as any);
