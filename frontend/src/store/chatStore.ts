@@ -23,6 +23,7 @@ export interface Message {
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
+  fileSize?: number;
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
@@ -109,16 +110,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     socket.on('message:new', (message: Message) => {
       const { currentChat, messages } = get();
       const currentUserId = localStorage.getItem('userId');
-      
+
       // Check if message is from another user
       const isFromOtherUser = message.senderId !== currentUserId;
-      
+
       if (currentChat && message.chatId === currentChat.id) {
         set({ messages: [...messages, message] });
-        
+
         // Auto mark as read if chat is open
         get().markAsRead(message.chatId, [message.id]);
-        
+
         // Play sound if from other user
         if (isFromOtherUser) {
           soundNotification.play();
@@ -126,7 +127,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       } else if (isFromOtherUser) {
         // Play sound for new message in other chats
         soundNotification.play();
-        
+
         // Show browser notification
         const senderName = message.sender?.name || 'Someone';
         showBrowserNotification(`${senderName} sent a message`, {
@@ -148,14 +149,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return chat;
       });
 
-      set({ chats: chats.sort((a, b) => 
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      ) });
+      set({
+        chats: chats.sort((a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )
+      });
     });
 
     socket.on('messages:read', ({ userId, messageIds, chatId }) => {
       const { messages, currentChat } = get();
-      
+
       if (currentChat && currentChat.id === chatId) {
         const updatedMessages = messages.map(msg => {
           if (messageIds.includes(msg.id)) {
@@ -296,23 +299,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   createDirectChat: async (otherUserId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/chat/chats/direct`,
-        { otherUserId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      const newChat = response.data;
-      
-      // Fetch full chat details
-      await get().fetchChats();
-      
-      return newChat;
-    } catch (error: any) {
-      throw error;
-    }
+    const token = localStorage.getItem('token');
+    const response = await axios.post(
+      `${API_URL}/chat/chats/direct`,
+      { otherUserId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const newChat = response.data;
+
+    // Fetch full chat details
+    await get().fetchChats();
+
+    return newChat;
   },
 
   markAsRead: (chatId: string, messageIds: string[]) => {

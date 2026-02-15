@@ -60,7 +60,7 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
       name: 'text-sm font-medium',
       bio: 'text-xs',
       buttons: 'mt-2 flex-col space-y-1',
-      buttonSize: 'sm' as 'sm',
+      buttonSize: 'sm' as const,
     },
     md: {
       card: 'p-4',
@@ -68,7 +68,7 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
       name: 'text-base font-medium',
       bio: 'text-sm',
       buttons: 'mt-3 flex space-x-2',
-      buttonSize: 'md' as 'md',
+      buttonSize: 'md' as const,
     },
     lg: {
       card: 'p-5',
@@ -76,7 +76,7 @@ const UserCard = ({ user, size = 'md' }: UserCardProps) => {
       name: 'text-lg font-semibold',
       bio: 'text-base',
       buttons: 'mt-4 flex space-x-3',
-      buttonSize: 'lg' as 'lg',
+      buttonSize: 'lg' as const,
     },
   };
 

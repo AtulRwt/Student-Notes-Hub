@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { FaUpload, FaLink, FaBookOpen, FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile } from 'react-icons/fa';
+import { FaUpload, FaLink, FaBookOpen, FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaRobot, FaCheckCircle } from 'react-icons/fa';
 import { useNotesStore } from '../../store/notesStore';
 import { useTagsStore } from '../../store/tagsStore';
 import type { NoteFormData, Note, ResourceType, Course } from '../../types';
 import { RESOURCE_TYPES } from '../../types';
 import TagSelector from './TagSelector';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Course data with appropriate semester counts
 const COURSES: Course[] = [
@@ -21,7 +24,7 @@ const COURSES: Course[] = [
   { id: 'ba-soc', name: 'B.A. Sociology', code: 'BA-SOC', department: 'Arts', color: '#dc2626' },
   { id: 'bba', name: 'BBA (Bachelor of Business Admin.)', code: 'BBA', department: 'Business', color: '#8b5cf6' },
   { id: 'bca', name: 'BCA (Bachelor of Computer Apps.)', code: 'BCA', department: 'Computer Applications', color: '#6366f1' },
-  
+
   // Postgraduate Courses
   { id: 'msc-cs', name: 'M.Sc. Computer Science', code: 'MSC-CS', department: 'Science', color: '#3b82f6' },
   { id: 'mtech-cs', name: 'M.Tech. Computer Science', code: 'MTECH-CS', department: 'Engineering', color: '#0ea5e9' },
@@ -46,13 +49,13 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
   const navigate = useNavigate();
   const { createNote, updateNote, isLoading } = useNotesStore();
   const { tags, fetchTags } = useTagsStore();
-  
+
   // Predefined semesters
   const semesters = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Sem 6', 'Sem 7', 'Sem 8'];
-  
+
   // State for course category
   const [courseCategory, setCourseCategory] = useState<'undergraduate' | 'postgraduate'>('undergraduate');
-  
+
   // Filter courses by category
   const filteredCourses = COURSES.filter(course => {
     if (courseCategory === 'undergraduate') {
@@ -61,7 +64,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
       return course.id.startsWith('m');
     }
   });
-  
+
   // Default form values
   const defaultFormData: NoteFormData = {
     title: '',
@@ -73,7 +76,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
     tags: [],
     file: null
   };
-  
+
   const [formData, setFormData] = useState<NoteFormData>({
     ...defaultFormData,
     ...initialData,
@@ -82,16 +85,20 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
     courseId: initialData?.courseId || '',
     tags: initialData?.tags?.map(t => t.tag.name) || []
   });
-  
+
   // For the file input
   const [fileName, setFileName] = useState<string>('');
   const [fileType, setFileType] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // AI Auto-fill state
+  const [isExtractingMetadata, setIsExtractingMetadata] = useState<boolean>(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+
   useEffect(() => {
     fetchTags();
   }, [fetchTags]);
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name === 'resourceType') {
@@ -100,11 +107,62 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  // AI Auto-fill: Extract metadata from uploaded file
+  const extractMetadataFromFile = async (file: File) => {
+    setIsExtractingMetadata(true);
+    toast.loading('AI is analyzing your document...', { id: 'ai-extract' });
+
+    try {
+      const token = localStorage.getItem('token');
+      const formDataToSend = new FormData();
+      formDataToSend.append('file', file);
+
+      const response = await axios.post(
+        `${API_URL}/upload/extract-metadata`,
+        formDataToSend,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.metadata) {
+        const metadata = response.data.metadata;
+        setAiSuggestions(metadata);
+
+        // Auto-fill form fields with AI suggestions
+        setFormData(prev => ({
+          ...prev,
+          title: metadata.title || prev.title,
+          description: metadata.description || prev.description,
+          tags: metadata.suggestedTags && metadata.suggestedTags.length > 0
+            ? metadata.suggestedTags
+            : prev.tags,
+          semester: metadata.detectedSemester || prev.semester
+        }));
+
+        toast.success(
+          `✨ AI filled the form! (Confidence: ${metadata.confidence})`,
+          { id: 'ai-extract', duration: 4000 }
+        );
+      } else {
+        toast.error('Could not extract metadata. Please fill manually.', { id: 'ai-extract' });
+      }
+    } catch (error: any) {
+      console.error('Metadata extraction failed:', error);
+      toast.error('AI analysis failed. Please fill the form manually.', { id: 'ai-extract' });
+    } finally {
+      setIsExtractingMetadata(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     console.log('File selected:', file?.name, file?.type, file?.size);
-    
+
     if (file) {
       // Check file type
       const allowedTypes = [
@@ -123,9 +181,9 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
         'image/bmp',
         'image/webp'
       ];
-      
+
       console.log('Checking file type:', file.type, 'allowed:', allowedTypes.includes(file.type));
-      
+
       if (!allowedTypes.includes(file.type)) {
         toast.error('Only PDF, Word, Excel, and Image files are allowed');
         // Reset the file input
@@ -134,7 +192,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
         }
         return;
       }
-      
+
       // Check file size (max 10MB)
       console.log('Checking file size:', file.size, 'max:', 10 * 1024 * 1024);
       if (file.size > 10 * 1024 * 1024) {
@@ -145,7 +203,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
         }
         return;
       }
-      
+
       // Determine document type
       let documentType = 'Document';
       if (file.type === 'application/pdf') {
@@ -157,32 +215,36 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
       } else if (file.type.startsWith('image/')) {
         documentType = 'Image';
       }
-      
+
       console.log('Setting document type:', documentType);
-      
+
       // Create a new File object to ensure it's properly handled
       const fileToUpload = new File([file], file.name, { type: file.type });
-      
+
       setFormData(prev => ({ ...prev, file: fileToUpload }));
       setFileName(file.name);
       setFileType(documentType);
+
+      // AI Auto-fill: Extract metadata from the uploaded file
+      await extractMetadataFromFile(fileToUpload);
     } else {
       // Clear file data if no file selected
       setFormData(prev => ({ ...prev, file: null }));
       setFileName('');
       setFileType('');
+      setAiSuggestions(null);
     }
   };
-  
+
   const handleTagsChange = (selectedTags: string[]) => {
     setFormData(prev => ({ ...prev, tags: selectedTags }));
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted with data:', formData);
     console.log('File details:', formData.file?.name, formData.file?.type, formData.file?.size);
-    
+
     try {
       if (isEditing && initialData?.id) {
         console.log('Updating note:', initialData.id);
@@ -200,13 +262,38 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
       toast.error(error.response?.data?.error || 'Failed to save note');
     }
   };
-  
+
   return (
     <div className="glass rounded-lg p-6 max-w-2xl mx-auto">
       <h1 className="gradient-text text-2xl font-bold mb-6">
         {isEditing ? 'Edit Note' : 'Upload New Note'}
       </h1>
-      
+
+      {/* AI Suggestions Banner */}
+      {aiSuggestions && (
+        <div className="mb-6 p-4 bg-blue-500/10 border border-blue-400/30 rounded-lg">
+          <div className="flex items-start gap-3">
+            <FaRobot className="text-blue-400 text-xl mt-1 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-blue-400 font-semibold flex items-center gap-2 mb-2">
+                <FaCheckCircle className="text-green-400" />
+                AI Auto-Fill Completed
+              </h3>
+              <p className="text-sm text-light-darker mb-2">
+                The form has been automatically filled based on your document.
+                You can edit any field before submitting.
+              </p>
+              <div className="text-xs text-accent">
+                Confidence: <span className={`font-semibold ${aiSuggestions.confidence === 'high' ? 'text-green-400' :
+                    aiSuggestions.confidence === 'medium' ? 'text-yellow-400' :
+                      'text-orange-400'
+                  }`}>{aiSuggestions.confidence}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label htmlFor="title" className="block text-light text-sm font-bold mb-2">
@@ -222,7 +309,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             required
           />
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="description" className="block text-light text-sm font-bold mb-2">
             Description *
@@ -237,7 +324,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             required
           />
         </div>
-        
+
         {/* Course Category Toggle */}
         <div className="mb-4">
           <label className="block text-light text-sm font-bold mb-2 flex items-center">
@@ -260,7 +347,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             </button>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Course Selection */}
           <div>
@@ -283,7 +370,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label htmlFor="semester" className="block text-light text-sm font-bold mb-2">
               Semester *
@@ -304,7 +391,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             </select>
           </div>
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="resourceType" className="block text-light text-sm font-bold mb-2">
             Resource Type *
@@ -324,13 +411,13 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             ))}
           </select>
         </div>
-        
+
         <div className="mb-4">
           <label className="block text-light text-sm font-bold mb-2">
             Tags *
           </label>
-          <TagSelector 
-            availableTags={tags.map(tag => tag.name)} 
+          <TagSelector
+            availableTags={tags.map(tag => tag.name)}
             selectedTags={formData.tags}
             onChange={handleTagsChange}
           />
@@ -338,7 +425,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             Select existing tags or create new ones by typing and pressing Enter
           </p>
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="externalUrl" className="block text-light text-sm font-bold mb-2 flex items-center">
             <FaLink className="text-blue-400 mr-1" /> External URL (Optional)
@@ -353,12 +440,12 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
             placeholder="https://example.com"
           />
         </div>
-        
+
         <div className="mb-6">
           <label htmlFor="file" className="block text-light text-sm font-bold mb-2 flex items-center">
             <FaUpload className="text-blue-400 mr-1" /> Upload Document (Optional)
           </label>
-          
+
           <div className="flex items-center">
             <label htmlFor="file" className="gradient-border bg-dark px-4 py-2 rounded-md font-medium cursor-pointer hover:bg-dark-light transition-colors">
               Choose File
@@ -389,7 +476,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
           </div>
           <p className="text-xs text-accent mt-1">Max file size: 10MB. Supported formats: PDF, Word, Excel, and Images.</p>
         </div>
-        
+
         <div className="flex justify-between">
           <button
             type="button"
@@ -398,7 +485,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
           >
             Cancel
           </button>
-          
+
           <button
             type="submit"
             disabled={isLoading}

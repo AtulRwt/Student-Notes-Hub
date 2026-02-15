@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { auth } from '../middleware/auth';
+import { geminiService } from '../services/ai/gemini';
 import fs from 'fs';
 
 const router = express.Router();
@@ -63,16 +64,70 @@ router.post('/', auth, upload.single('file'), async (req: Request, res: Response
 
     // Return the file URL
     const fileUrl = `/uploads/${req.file.filename}`;
-    
+
     res.json({
       url: fileUrl,
       fileName: req.file.originalname,
       fileType: req.file.mimetype,
       size: req.file.size
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: error.message || 'Failed to upload file' });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
+// NEW: AI-powered metadata extraction endpoint
+router.post('/extract-metadata', auth, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    console.log(`Extracting metadata from file: ${req.file.originalname}`);
+
+    // Extract text from the uploaded file
+    const filePath = req.file.path;
+    const extractedText = await geminiService.extractTextFromFile(filePath);
+
+    // Use AI to extract metadata
+    const metadata = await geminiService.extractDocumentMetadata(
+      extractedText,
+      req.file.originalname
+    );
+
+    // Return metadata along with file info
+    res.json({
+      url: `/uploads/${req.file.filename}`,
+      fileName: req.file.originalname,
+      fileType: req.file.mimetype,
+      size: req.file.size,
+      metadata: {
+        title: metadata.title,
+        description: metadata.description,
+        suggestedTags: metadata.suggestedTags,
+        detectedSemester: metadata.detectedSemester,
+        confidence: metadata.confidence
+      }
+    });
+  } catch (error: unknown) {
+    console.error('Metadata extraction error:', error);
+
+    // If there's an error, still return the file info without metadata
+    if (req.file) {
+      res.json({
+        url: `/uploads/${req.file.filename}`,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        size: req.file.size,
+        metadata: null,
+        error: 'Failed to extract metadata. Please fill the form manually.'
+      });
+    } else {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
+      res.status(500).json({ error: errorMessage });
+    }
   }
 });
 

@@ -35,7 +35,10 @@ router.get('/chats', auth, async (req, res) => {
         },
         messages: {
           orderBy: { createdAt: 'desc' },
-          take: 1
+          take: 1,
+          include: {
+            readBy: true
+          }
         }
       },
       orderBy: {

@@ -2,13 +2,13 @@
 
 class SoundNotification {
   private audio: HTMLAudioElement | null = null;
-  private enabled: boolean = true;
+  private enabled = true;
 
   constructor() {
     // Create audio element for notification sound
     // Using a simple beep sound encoded as data URI
     const beepSound = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE';
-    
+
     try {
       this.audio = new Audio(beepSound);
       this.audio.volume = 0.5;
@@ -21,7 +21,7 @@ class SoundNotification {
     if (this.enabled && this.audio) {
       // Reset audio to beginning
       this.audio.currentTime = 0;
-      
+
       // Play sound (catch error if user hasn't interacted with page yet)
       this.audio.play().catch((error) => {
         console.debug('Could not play notification sound:', error);

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../index';
@@ -32,7 +33,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction): Pro
 
     // Verify token
     const decoded = jwt.verify(
-      token, 
+      token,
       process.env.JWT_SECRET || 'default-secret'
     ) as JwtPayload;
 

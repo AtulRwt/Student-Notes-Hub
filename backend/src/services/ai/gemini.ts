@@ -41,10 +41,18 @@ interface PDFPage {
   [key: string]: any;
 }
 
+export interface DocumentMetadata {
+  title: string;
+  description: string;
+  suggestedTags: string[];
+  detectedSemester?: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 export class GeminiService {
   private pdfExtract;
   private apiKeyValid: boolean;
-  
+
   constructor() {
     this.pdfExtract = new PDFExtract();
     this.apiKeyValid = !!apiKey && !isPlaceholder; // Track if we have a valid API key
@@ -62,7 +70,7 @@ export class GeminiService {
         console.warn('Gemini summarizeText: API key invalid or missing. Returning fallback summary.');
         return this.generateFallbackSummary(text);
       }
-      
+
       const prompt = `Summarize the following text into key points and main ideas. Focus on academic content and key concepts:
       
 ${text}`;
@@ -78,6 +86,68 @@ ${text}`;
   }
 
   /**
+   * Extract document metadata using AI
+   * @param text The extracted text from the document
+   * @param fileName The name of the file for additional context
+   * @returns Suggested metadata for the document
+   */
+  async extractDocumentMetadata(text: string, fileName: string): Promise<DocumentMetadata> {
+    try {
+      if (!this.apiKeyValid) {
+        console.warn('Gemini extractDocumentMetadata: API key invalid or missing. Returning fallback metadata.');
+        return this.generateFallbackMetadata(text, fileName);
+      }
+
+      const prompt = `You are a document analysis AI. Analyze the following document content and extract metadata.
+
+Document Name: ${fileName}
+Document Content (first 3000 chars):
+${text.substring(0, 3000)}
+
+Please extract the following information and return ONLY a valid JSON object:
+{
+  "title": "A concise, descriptive title for this document (50 chars max)",
+  "description": "A brief 2-3 sentence description of the content and purpose",
+  "suggestedTags": ["tag1", "tag2", "tag3"],
+  "detectedSemester": "Sem X or null if not detected",
+  "confidence": "high, medium, or low"
+}
+
+Rules:
+- Title should be clear and academic
+- Description should explain what the document covers
+- Suggest 3-5 relevant tags (subjects, topics, keywords)
+- Detect semester if mentioned (e.g., "Sem 1", "Sem 2", etc.)
+- Confidence: high if clear content, medium if partial info, low if unclear
+
+Return ONLY the JSON object, no additional text.`;
+
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const result = await model.generateContent(prompt);
+      const response = result.response?.text?.() || '';
+
+      // Try to parse JSON from response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const metadata = JSON.parse(jsonMatch[0]);
+        return {
+          title: metadata.title || this.generateTitleFromFileName(fileName),
+          description: metadata.description || 'No description available',
+          suggestedTags: Array.isArray(metadata.suggestedTags) ? metadata.suggestedTags : [],
+          detectedSemester: metadata.detectedSemester || undefined,
+          confidence: metadata.confidence || 'medium'
+        };
+      }
+
+      // Fallback if JSON parsing fails
+      return this.generateFallbackMetadata(text, fileName);
+    } catch (error) {
+      console.error('Error extracting document metadata:', error);
+      return this.generateFallbackMetadata(text, fileName);
+    }
+  }
+
+  /**
    * Extract text content from a file based on its type
    * @param filePath Path to the file
    * @returns Extracted text content
@@ -85,7 +155,7 @@ ${text}`;
   async extractTextFromFile(filePath: string): Promise<string> {
     try {
       const fileExtension = path.extname(filePath).toLowerCase();
-      
+
       if (fileExtension === '.pdf') {
         return await this.extractTextFromPDF(filePath);
       } else if (fileExtension === '.txt') {
@@ -119,7 +189,7 @@ ${text}`;
   private async extractTextFromPDF(filePath: string): Promise<string> {
     try {
       const data = await this.pdfExtract.extract(filePath, {});
-      return data.pages.map((page: PDFPage) => 
+      return data.pages.map((page: PDFPage) =>
         page.content.map((item: PDFContent) => item.str).join(' ')
       ).join('\n');
     } catch (error) {
@@ -161,6 +231,53 @@ ${text}`;
   }
 
   /**
+   * Generate fallback metadata when AI is unavailable
+   */
+  private generateFallbackMetadata(text: string, fileName: string): DocumentMetadata {
+    const title = this.generateTitleFromFileName(fileName);
+    const firstSentences = text.split(/[.!?]/).filter(s => s.trim().length > 10).slice(0, 2).join('. ');
+
+    return {
+      title,
+      description: firstSentences || 'Document uploaded. Please add a description.',
+      suggestedTags: this.extractKeywordsFromText(text),
+      confidence: 'low'
+    };
+  }
+
+  /**
+   * Generate a title from file name
+   */
+  private generateTitleFromFileName(fileName: string): string {
+    return fileName
+      .replace(/\.[^/.]+$/, '') // Remove extension
+      .replace(/[-_]/g, ' ') // Replace dashes and underscores with spaces
+      .replace(/\b\w/g, (char) => char.toUpperCase()); // Capitalize words
+  }
+
+  /**
+   * Extract simple keywords from text
+   */
+  private extractKeywordsFromText(text: string): string[] {
+    // Common academic keywords
+    const keywords: string[] = [];
+    const commonTerms = [
+      'algorithm', 'database', 'network', 'programming', 'mathematics',
+      'physics', 'chemistry', 'biology', 'history', 'economics',
+      'literature', 'computer science', 'engineering', 'statistics'
+    ];
+
+    const lowerText = text.toLowerCase();
+    commonTerms.forEach(term => {
+      if (lowerText.includes(term)) {
+        keywords.push(term);
+      }
+    });
+
+    return keywords.slice(0, 3);
+  }
+
+  /**
    * Create a lightweight fallback summary when AI is unavailable.
    */
   private generateFallbackSummary(text: string): string {
@@ -195,4 +312,4 @@ ${text}`;
 }
 
 // Export a singleton instance of the service
-export const geminiService = new GeminiService(); 
+export const geminiService = new GeminiService();

@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
@@ -59,7 +59,7 @@ const upload = multer({
       'image/webp',
       'image/tiff'
     ];
-    
+
     if (allowedMimeTypes.includes(file.mimetype)) {
       console.log(`File type ${file.mimetype} is allowed`);
       cb(null, true);
@@ -71,7 +71,7 @@ const upload = multer({
 });
 
 // Custom error handling for multer
-const uploadMiddleware = (req: Request, res: Response, next: Function) => {
+const uploadMiddleware = (req: Request, res: Response, next: NextFunction) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       console.error('Multer error:', err);
@@ -111,9 +111,9 @@ notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response
     console.log('File upload request received');
     console.log('Request body:', req.body);
     console.log('File details:', req.file);
-    
+
     const { title, description, externalUrl, semester, courseId, tags } = req.body;
-    
+
     // Validate input
     const validInput = createNoteSchema.safeParse({
       title,
@@ -135,7 +135,7 @@ notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response
     }
 
     console.log('Validation passed, creating note in database');
-    
+
     // Create note in database
     const note = await prisma.note.create({
       data: {
@@ -156,7 +156,7 @@ notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response
 
     // Create tags or connect existing ones
     const parsedTags = validInput.data.tags || [];
-    
+
     if (parsedTags.length > 0) {
       console.log('Processing tags:', parsedTags);
       await Promise.all(
@@ -204,15 +204,15 @@ notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response
   } catch (error) {
     console.error('Create note error details:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Create note error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    
+
     // Delete uploaded file if there's an error
     if (req.file) {
       console.log('Error occurred, removing uploaded file:', req.file.path);
       fs.unlinkSync(req.file.path);
     }
-    
-    res.status(500).json({ 
-      error: 'Failed to create note', 
+
+    res.status(500).json({
+      error: 'Failed to create note',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -222,27 +222,27 @@ notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response
 notesRouter.get('/', async (req: Request, res: Response) => {
   try {
     const { search, semester, subject, course } = req.query;
-    
+
     // Use proper Prisma types
     const filter: any = { AND: [] };
-    
+
     // Enhanced search logic
     if (search && typeof search === 'string') {
       const trimmedSearch = search.trim();
-      
+
       // Check if it's an exact search (enclosed in quotes)
       const isExactSearch = /^"[^"]+"$/.test(trimmedSearch);
       let searchText = trimmedSearch;
-      
+
       if (isExactSearch) {
         // Remove the quotes for the search
         searchText = trimmedSearch.substring(1, trimmedSearch.length - 1);
-        
+
         // For exact search, use equality where possible
         filter.OR = [
           { title: { equals: searchText, mode: 'insensitive' } },
           { description: { contains: searchText, mode: 'insensitive' } },
-          { 
+          {
             tags: {
               some: {
                 tag: {
@@ -258,37 +258,37 @@ notesRouter.get('/', async (req: Request, res: Response) => {
           .toLowerCase()
           .split(/\s+/)
           .filter(term => term.length > 1); // Filter out single characters
-        
+
         if (searchTerms.length > 0) {
           const searchConditions: any[] = [];
-          
+
           // Title search (higher weight in relevance calculation)
           searchConditions.push({
             OR: searchTerms.map(term => ({
-              title: { 
-                contains: term,
-                mode: 'insensitive' 
-              }
-            }))
-          });
-          
-          // Description search
-          searchConditions.push({
-            OR: searchTerms.map(term => ({
-              description: { 
+              title: {
                 contains: term,
                 mode: 'insensitive'
               }
             }))
           });
-          
+
+          // Description search
+          searchConditions.push({
+            OR: searchTerms.map(term => ({
+              description: {
+                contains: term,
+                mode: 'insensitive'
+              }
+            }))
+          });
+
           // Tag search
           searchConditions.push({
             OR: searchTerms.map(term => ({
               tags: {
                 some: {
                   tag: {
-                    name: { 
+                    name: {
                       contains: term,
                       mode: 'insensitive'
                     }
@@ -297,19 +297,19 @@ notesRouter.get('/', async (req: Request, res: Response) => {
               }
             }))
           });
-          
+
           filter.OR = searchConditions;
         }
       }
     }
-    
+
     // Other filters
     const andFilters: any[] = [];
-    
+
     if (semester) {
       andFilters.push({ semester: semester as string });
     }
-    
+
     if (subject) {
       andFilters.push({
         tags: {
@@ -321,7 +321,7 @@ notesRouter.get('/', async (req: Request, res: Response) => {
         }
       });
     }
-    
+
     if (course) {
       // Since we don't have a direct course relation in this example,
       // we can search for it in tags or other relevant fields
@@ -344,14 +344,14 @@ notesRouter.get('/', async (req: Request, res: Response) => {
         ]
       });
     }
-    
+
     // Add AND filters if they exist
     if (andFilters.length > 0) {
       filter.AND = andFilters;
     } else {
       delete filter.AND;
     }
-    
+
     // Get notes with filtering
     const notes = await prisma.note.findMany({
       where: filter,
@@ -382,51 +382,51 @@ notesRouter.get('/', async (req: Request, res: Response) => {
 
     // If search was performed, add a relevance score for the frontend
     let notesWithRelevance = notes;
-    
+
     if (search && typeof search === 'string' && search.trim() !== '') {
       const searchTerms = search.toLowerCase().split(/\s+/);
-      
+
       notesWithRelevance = notes.map(note => {
         // Calculate a simple relevance score based on search terms
         let relevanceScore = 0;
-        
+
         // Title matches carry highest weight
         searchTerms.forEach(term => {
           if (note.title.toLowerCase().includes(term)) {
             relevanceScore += 3;
           }
-          
+
           // Exact title match gets extra points
           if (note.title.toLowerCase() === search.toLowerCase()) {
             relevanceScore += 5;
           }
-          
+
           // Description matches
           if (note.description.toLowerCase().includes(term)) {
             relevanceScore += 1;
           }
-          
+
           // Tag matches (if tags exist)
           if (note.tags && Array.isArray(note.tags)) {
             note.tags.forEach((tagRel: any) => {
-              if (tagRel.tag && tagRel.tag.name && 
-                  tagRel.tag.name.toLowerCase().includes(term)) {
+              if (tagRel.tag && tagRel.tag.name &&
+                tagRel.tag.name.toLowerCase().includes(term)) {
                 relevanceScore += 2;
               }
             });
           }
         });
-        
+
         return {
           ...note,
           _relevance: relevanceScore
         };
       });
-      
+
       // Sort by relevance score
       notesWithRelevance.sort((a: any, b: any) => b._relevance - a._relevance);
     }
-    
+
     // Return search metadata with results
     res.json({
       results: notesWithRelevance,
@@ -443,7 +443,7 @@ notesRouter.get('/', async (req: Request, res: Response) => {
 notesRouter.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     const note = await prisma.note.findUnique({
       where: { id },
       include: {
@@ -480,11 +480,11 @@ notesRouter.get('/:id', async (req: Request, res: Response) => {
         }
       }
     });
-    
+
     if (!note) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    
+
     res.json(note);
   } catch (error) {
     console.error('Get note error:', error);
@@ -497,7 +497,7 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
   try {
     const { id } = req.params;
     const { title, description, externalUrl, semester, courseId, tags } = req.body;
-    
+
     // Validate input
     const validInput = updateNoteSchema.safeParse({
       title,
@@ -515,7 +515,7 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
       }
       return res.status(400).json({ error: validInput.error.issues });
     }
-    
+
     // Check if note exists and belongs to user
     const existingNote = await prisma.note.findUnique({
       where: { id },
@@ -523,24 +523,24 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
         tags: true
       }
     });
-    
+
     if (!existingNote) {
       if (req.file) {
         fs.unlinkSync(req.file.path);
       }
       return res.status(404).json({ error: 'Note not found' });
     }
-    
+
     if (existingNote.userId !== req.user!.id) {
       if (req.file) {
         fs.unlinkSync(req.file.path);
       }
       return res.status(403).json({ error: 'Not authorized to update this note' });
     }
-    
+
     // Handle file updates
     let fileUrl = existingNote.fileUrl;
-    
+
     if (req.file) {
       // Delete old file if it exists
       if (existingNote.fileUrl) {
@@ -548,16 +548,16 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
           process.cwd(),
           existingNote.fileUrl.replace(/^\/uploads\//, uploadDir + '/')
         );
-        
+
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
         }
       }
-      
+
       // Set new file URL
       fileUrl = `/uploads/${req.file.filename}`;
     }
-    
+
     // Update note
     const updatedNote = await prisma.note.update({
       where: { id },
@@ -570,14 +570,14 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
         courseId: validInput.data.courseId
       }
     });
-    
+
     // Update tags if provided
     if (validInput.data.tags) {
       // Delete existing tag relationships
       await prisma.noteTags.deleteMany({
         where: { noteId: id }
       });
-      
+
       // Create new tag relationships
       await Promise.all(
         validInput.data.tags.map(async (tagName) => {
@@ -587,7 +587,7 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
             update: {},
             create: { name: tagName }
           });
-          
+
           // Create relationship between note and tag
           await prisma.noteTags.create({
             data: {
@@ -598,7 +598,7 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
         })
       );
     }
-    
+
     // Get the updated note with tags
     const noteWithTags = await prisma.note.findUnique({
       where: { id },
@@ -617,16 +617,16 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
         }
       }
     });
-    
+
     res.json(noteWithTags);
   } catch (error) {
     console.error('Update note error:', error);
-    
+
     // Delete uploaded file if there's an error
     if (req.file) {
       fs.unlinkSync(req.file.path);
     }
-    
+
     res.status(500).json({ error: 'Failed to update note' });
   }
 });
@@ -635,37 +635,37 @@ notesRouter.put('/:id', auth, upload.single('file'), async (req: Request, res: R
 notesRouter.delete('/:id', auth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     // Check if note exists and belongs to user
     const existingNote = await prisma.note.findUnique({
       where: { id }
     });
-    
+
     if (!existingNote) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    
+
     if (existingNote.userId !== req.user!.id) {
       return res.status(403).json({ error: 'Not authorized to delete this note' });
     }
-    
+
     // Delete file if it exists
     if (existingNote.fileUrl) {
       const filePath = path.join(
         process.cwd(),
         existingNote.fileUrl.replace(/^\/uploads\//, uploadDir + '/')
       );
-      
+
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
     }
-    
+
     // Delete note (cascading will delete related tags)
     await prisma.note.delete({
       where: { id }
     });
-    
+
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {
     console.error('Delete note error:', error);
@@ -678,16 +678,16 @@ notesRouter.post('/:id/favorite', auth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
-    
+
     // Check if note exists
     const note = await prisma.note.findUnique({
       where: { id }
     });
-    
+
     if (!note) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    
+
     // Check if already favorited
     const existingFavorite = await prisma.favorite.findUnique({
       where: {
@@ -697,9 +697,9 @@ notesRouter.post('/:id/favorite', auth, async (req: Request, res: Response) => {
         }
       }
     });
-    
+
     let result;
-    
+
     if (existingFavorite) {
       // Remove favorite
       result = await prisma.favorite.delete({
@@ -710,7 +710,7 @@ notesRouter.post('/:id/favorite', auth, async (req: Request, res: Response) => {
           }
         }
       });
-      
+
       res.json({ action: 'removed', favorite: result });
     } else {
       // Add favorite
@@ -720,7 +720,7 @@ notesRouter.post('/:id/favorite', auth, async (req: Request, res: Response) => {
           noteId: id
         }
       });
-      
+
       res.json({ action: 'added', favorite: result });
     }
   } catch (error) {
@@ -734,20 +734,20 @@ notesRouter.post('/:id/comments', auth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { content } = req.body;
-    
+
     if (!content || content.trim() === '') {
       return res.status(400).json({ error: 'Comment content is required' });
     }
-    
+
     // Check if note exists
     const note = await prisma.note.findUnique({
       where: { id }
     });
-    
+
     if (!note) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    
+
     // Create comment
     const comment = await prisma.comment.create({
       data: {
@@ -765,7 +765,7 @@ notesRouter.post('/:id/comments', auth, async (req: Request, res: Response) => {
         }
       }
     });
-    
+
     res.status(201).json(comment);
   } catch (error) {
     console.error('Add comment error:', error);
@@ -814,7 +814,7 @@ notesRouter.get('/:id/summarize', auth, async (req: Request, res: Response) => {
     // Log info for debugging
     console.log('File URL:', note.fileUrl);
     console.log('Extracted filename:', fileName);
-    
+
     // Get upload directory - use path.join for better path handling
     const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../../../uploads');
     console.log('Upload directory:', uploadDir);
@@ -826,25 +826,25 @@ notesRouter.get('/:id/summarize', auth, async (req: Request, res: Response) => {
     // Check if file exists
     if (!fs.existsSync(filePath)) {
       console.error('File not found at path:', filePath);
-      
+
       // Try alternative path construction as fallback
       const altPath = path.join(process.cwd(), 'uploads', fileName);
       console.log('Trying alternative path:', altPath);
-      
+
       if (fs.existsSync(altPath)) {
         console.log('File found at alternative path');
         // Generate summary using Gemini API
         const summary = await geminiService.summarizeFile(altPath);
-        
+
         // Store the summary in the database as user-specific
         await prisma.$executeRaw`
           INSERT INTO "NoteSummary" ("id", "content", "noteId", "userId", "createdAt", "updatedAt")
           VALUES (${crypto.randomUUID()}, ${summary}, ${id}, ${userId}, NOW(), NOW())
         `;
-        
+
         return res.json({ summary: summary });
       }
-      
+
       return res.status(404).json({ error: 'File not found' });
     }
 

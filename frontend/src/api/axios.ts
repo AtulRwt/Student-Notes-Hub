@@ -31,7 +31,9 @@ apiClient.interceptors.response.use(
       try {
         localStorage.removeItem('token');
         localStorage.removeItem('auth-storage');
-      } catch {}
+      } catch {
+        // Intentionally empty - localStorage operations may fail in some environments
+      }
       if (typeof window !== 'undefined') {
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

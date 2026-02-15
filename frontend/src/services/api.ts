@@ -1,8 +1,8 @@
 import axios from 'axios';
-import type { 
-  LoginData, 
-  RegisterData, 
-  AuthResponse, 
+import type {
+  LoginData,
+  RegisterData,
+  AuthResponse,
   Note,
   NoteFormData,
   Comment,
@@ -27,7 +27,7 @@ api.interceptors.request.use((config) => {
   try {
     // First try direct token from localStorage
     let token = localStorage.getItem('token');
-    
+
     // If not found, try auth-storage
     if (!token) {
       const authStorage = localStorage.getItem('auth-storage');
@@ -36,7 +36,7 @@ api.interceptors.request.use((config) => {
         token = state?.token;
       }
     }
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -56,7 +56,9 @@ api.interceptors.response.use(
       try {
         localStorage.removeItem('token');
         localStorage.removeItem('auth-storage');
-      } catch {}
+      } catch {
+        // Intentionally empty - localStorage operations may fail in some environments
+      }
       if (typeof window !== 'undefined') {
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
@@ -86,37 +88,37 @@ export const authAPI = {
     const response = await api.get<{ user: AuthResponse['user'] }>('/auth/me');
     return response.data;
   },
-  
+
   // Update user profile
   updateProfile: async (data: ProfileUpdateData): Promise<User> => {
     const formData = new FormData();
-    
+
     // Add text fields
     if (data.name) formData.append('name', data.name);
     if (data.bio) formData.append('bio', data.bio);
     if (data.education) formData.append('education', data.education);
     if (data.interests) formData.append('interests', JSON.stringify(data.interests));
     if (data.socialLinks) formData.append('socialLinks', JSON.stringify(data.socialLinks));
-    
+
     // Add profile image if exists
     if (data.profileImage) {
       console.log('Uploading profile image:', data.profileImage);
       formData.append('profileImage', data.profileImage);
     }
-    
+
     console.log('Updating profile with data:', data);
-    
+
     const response = await api.put<User>('/auth/profile', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
+
     console.log('Profile update response:', response.data);
     if (response.data.profileImage) {
       console.log('New profile image URL:', response.data.profileImage);
     }
-    
+
     return response.data;
   }
 };
@@ -124,9 +126,9 @@ export const authAPI = {
 // Notes API
 export const notesAPI = {
   // Get all notes with optional filters
-  getNotes: async (filters?: { 
-    search?: string; 
-    semester?: string; 
+  getNotes: async (filters?: {
+    search?: string;
+    semester?: string;
     subject?: string;
     course?: string;
     resourceType?: string;
@@ -136,13 +138,13 @@ export const notesAPI = {
     searchPerformed: boolean;
   }> => {
     const params: any = { ...filters };
-    
+
     // If resourceType is provided, adjust the search parameter to include it
     if (params.resourceType) {
       params.search = params.search ? `${params.search} ${params.resourceType}` : params.resourceType;
       delete params.resourceType; // Remove resourceType as it's not a backend filter
     }
-    
+
     const response = await api.get<{
       results: Note[];
       totalCount: number;
@@ -171,9 +173,9 @@ export const notesAPI = {
       fileName: data.file?.name,
       fileSize: data.file?.size
     });
-    
+
     const formData = new FormData();
-    
+
     // Add text fields
     formData.append('title', data.title);
     formData.append('description', data.description);
@@ -181,12 +183,12 @@ export const notesAPI = {
     formData.append('semester', data.semester);
     if (data.courseId) formData.append('courseId', data.courseId);
     formData.append('tags', JSON.stringify(data.tags));
-    
+
     // Add file if exists
     if (data.file) {
       console.log('Appending file to form data:', data.file.name, data.file.type, data.file.size);
       formData.append('file', data.file);
-      
+
       // Log form data content
       console.log('Form data entries:');
       for (const [key, value] of formData.entries()) {
@@ -197,7 +199,7 @@ export const notesAPI = {
         }
       }
     }
-    
+
     try {
       // Use a timeout of 30 seconds for large file uploads
       const response = await api.post<Note>('/notes', formData, {
@@ -217,23 +219,23 @@ export const notesAPI = {
   // Update note
   updateNote: async (id: string, data: NoteFormData): Promise<Note> => {
     const formData = new FormData();
-    
+
     // Add text fields
     if (data.title) formData.append('title', data.title);
     if (data.description) formData.append('description', data.description);
     if (data.externalUrl) formData.append('externalUrl', data.externalUrl);
     if (data.semester) formData.append('semester', data.semester);
     if (data.tags) formData.append('tags', JSON.stringify(data.tags));
-    
+
     // Add file if exists
     if (data.file) formData.append('file', data.file);
-    
+
     const response = await api.put<Note>(`/notes/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
+
     return response.data;
   },
 
@@ -265,7 +267,7 @@ export const notesAPI = {
         totalCount: number;
         searchPerformed: boolean;
       }>('/notes');
-      
+
       // Sort by number of favorites and comments
       return response.data.results
         .sort((a, b) => {
@@ -291,10 +293,10 @@ export const notesAPI = {
         searchPerformed: boolean;
       }>('/notes');
       const notes = response.data.results;
-      
+
       // Count tag occurrences
       const tagCounts: Record<string, { id: string; name: string; count: number }> = {};
-      
+
       notes.forEach(note => {
         note.tags.forEach(tagRelation => {
           const { tag } = tagRelation;
@@ -305,7 +307,7 @@ export const notesAPI = {
           }
         });
       });
-      
+
       // Convert to array and sort by count
       return Object.values(tagCounts)
         .sort((a, b) => b.count - a.count)
@@ -327,17 +329,17 @@ export const notesAPI = {
         searchPerformed: boolean;
       }>('/notes');
       const notes = response.data.results;
-      
+
       // Find unique users who have contributed
       const userMap = new Map();
-      
+
       notes.forEach(note => {
         if (!userMap.has(note.user.id)) {
           // Find a subject from their tags
-          const subject = note.tags.length > 0 
-            ? note.tags[0].tag.name 
+          const subject = note.tags.length > 0
+            ? note.tags[0].tag.name
             : note.course?.name || 'Academic Content';
-          
+
           userMap.set(note.user.id, {
             id: note.user.id,
             name: note.user.name,
@@ -346,7 +348,7 @@ export const notesAPI = {
           });
         }
       });
-      
+
       // Convert to array, randomize, and take top 3
       return Array.from(userMap.values())
         .sort(() => 0.5 - Math.random())
@@ -391,7 +393,7 @@ export const feedbackAPI = {
     const response = await api.post<{ success: boolean; message: string; data: any }>('/feedback', data);
     return response.data;
   },
-  
+
   // Get all feedback (requires auth)
   getAllFeedback: async (): Promise<any[]> => {
     const response = await api.get<any[]>('/feedback');
@@ -406,11 +408,11 @@ export const settingsAPI = {
     const response = await api.get('/settings');
     return response.data;
   },
-  
+
   // Update account settings with better error handling
-  updateAccount: async (data: { 
-    email?: string; 
-    password?: { oldPassword: string; newPassword: string } 
+  updateAccount: async (data: {
+    email?: string;
+    password?: { oldPassword: string; newPassword: string }
   }): Promise<any> => {
     try {
       // Log what we're trying to update (without revealing actual passwords)
@@ -418,7 +420,7 @@ export const settingsAPI = {
       if (data.email) updateTypes.push('email');
       if (data.password) updateTypes.push('password');
       console.log(`Updating account settings: ${updateTypes.join(', ')}`);
-      
+
       const response = await api.patch('/settings/account', data);
       return response.data;
     } catch (error: any) {
@@ -426,7 +428,7 @@ export const settingsAPI = {
       throw error;
     }
   },
-  
+
   // Update notification settings
   updateNotifications: async (data: {
     emailNotifications?: boolean;
@@ -439,7 +441,7 @@ export const settingsAPI = {
     const response = await api.patch('/settings/notifications', data);
     return response.data;
   },
-  
+
   // Update appearance settings
   updateAppearance: async (data: {
     theme?: 'dark' | 'light';
@@ -450,7 +452,7 @@ export const settingsAPI = {
     const response = await api.patch('/settings/appearance', data);
     return response.data;
   },
-  
+
   // Update security settings
   updateSecurity: async (data: {
     twoFactorAuth?: boolean;
