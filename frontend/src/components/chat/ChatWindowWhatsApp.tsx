@@ -134,7 +134,8 @@ const ChatWindowWhatsApp = ({ chat, onBack }: ChatWindowWhatsAppProps) => {
         formData.append('file', selectedFile);
 
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/upload', {
+        const apiUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { useAuthStore } from './authStore';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Types
 interface EngagementData {
@@ -66,7 +66,7 @@ const analyticsAPI = {
   updateStatus: async (userId: string, name: string, department?: string): Promise<void> => {
     await axios.post(`${API_URL}/analytics/online-status`, { userId, name, department });
   },
-  
+
   userLogout: async (userId: string): Promise<void> => {
     await axios.post(`${API_URL}/analytics/user-logout`, { userId });
   }
@@ -84,16 +84,16 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await analyticsAPI.getEngagement();
-      set({ 
-        engagement: data, 
+      set({
+        engagement: data,
         isLoading: false,
         lastUpdated: new Date()
       });
     } catch (error: any) {
       console.error('Error fetching engagement data:', error);
-      set({ 
-        isLoading: false, 
-        error: error.response?.data?.error || 'Failed to fetch engagement data' 
+      set({
+        isLoading: false,
+        error: error.response?.data?.error || 'Failed to fetch engagement data'
       });
     }
   },
@@ -146,11 +146,11 @@ export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
       console.error('Error updating online status:', error);
     }
   },
-  
+
   userLogout: async () => {
     const user = useAuthStore.getState().user;
     if (!user) return;
-    
+
     try {
       await analyticsAPI.userLogout(user.id);
       // Clear online data to reflect the logout

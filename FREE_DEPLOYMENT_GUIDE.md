@@ -249,8 +249,8 @@ Add these TWO variables:
 
 | Name | Value |
 |------|-------|
-| `VITE_API_URL` | `https://student-notes-backend.onrender.com/api` |
-| `VITE_WS_URL` | `https://student-notes-backend.onrender.com` |
+| `VITE_API_URL` | `https://student-notes-backend-ecvx.onrender.com/api` |
+| `VITE_WS_URL` | `https://student-notes-backend-ecvx.onrender.com` |
 
 ⚠️ **Replace with YOUR actual Render URL from Step 1.9!**
 

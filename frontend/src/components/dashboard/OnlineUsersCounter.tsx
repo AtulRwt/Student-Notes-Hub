@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAnalyticsStore } from '../../store/analyticsStore';
 
 // API base URL - use environment variable in production
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Interface for the data from the store
 interface OnlineUserWithAvatar extends Record<string, any> {
@@ -23,12 +23,12 @@ interface DepartmentActivity {
 
 const OnlineUsersCounter = () => {
   const { user } = useAuthStore();
-  const { 
-    onlineData, 
-    isLoading, 
-    fetchOnlineUsers, 
-    trackUserAction, 
-    updateOnlineStatus 
+  const {
+    onlineData,
+    isLoading,
+    fetchOnlineUsers,
+    trackUserAction,
+    updateOnlineStatus
   } = useAnalyticsStore(state => ({
     onlineData: state.onlineData,
     isLoading: state.isLoading,
@@ -36,16 +36,16 @@ const OnlineUsersCounter = () => {
     trackUserAction: state.trackUserAction,
     updateOnlineStatus: state.updateOnlineStatus
   }));
-  
+
   const [showAnimation, setShowAnimation] = useState(false);
   const [previousCount, setPreviousCount] = useState(0);
   const [newUserIds, setNewUserIds] = useState<string[]>([]);
-  const previousUsers = useRef<{[key: string]: boolean}>({});
+  const previousUsers = useRef<{ [key: string]: boolean }>({});
 
   // Initial data fetch
   useEffect(() => {
     fetchOnlineUsers();
-    
+
     // Update current user's online status
     if (user) {
       // Track initial page view action
@@ -58,16 +58,16 @@ const OnlineUsersCounter = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOnlineUsers();
-      
+
       // Periodically update the current user's online status
       if (user) {
         updateOnlineStatus();
       }
     }, 10000);
-    
+
     return () => {
       clearInterval(interval);
-      
+
       // If component is unmounting due to logout, ensure user is removed from online users
       if (user && !window.location.pathname.includes('/login')) {
         useAnalyticsStore.getState().userLogout().catch(error => {
@@ -96,7 +96,7 @@ const OnlineUsersCounter = () => {
     // Listen for user activity
     window.addEventListener('click', trackInteraction);
     window.addEventListener('keydown', trackInteraction);
-    
+
     return () => {
       window.removeEventListener('click', trackInteraction);
       window.removeEventListener('keydown', trackInteraction);
@@ -106,10 +106,10 @@ const OnlineUsersCounter = () => {
   // Update animation when online count changes and track new users
   useEffect(() => {
     if (!onlineData) return;
-    
-    const currentUserIds: {[key: string]: boolean} = {};
+
+    const currentUserIds: { [key: string]: boolean } = {};
     const newIds: string[] = [];
-    
+
     // Find new users that weren't in the previous data
     onlineData.onlineUsers.forEach(user => {
       currentUserIds[user.id] = true;
@@ -117,7 +117,7 @@ const OnlineUsersCounter = () => {
         newIds.push(user.id);
       }
     });
-    
+
     // Update states based on changes
     if (onlineData.onlineCount > previousCount || newIds.length > 0) {
       setShowAnimation(true);
@@ -127,7 +127,7 @@ const OnlineUsersCounter = () => {
         setNewUserIds([]);
       }, 3000);
     }
-    
+
     setPreviousCount(onlineData.onlineCount);
     previousUsers.current = currentUserIds;
   }, [onlineData, previousCount]);
@@ -136,12 +136,12 @@ const OnlineUsersCounter = () => {
   const formatElapsedTime = (dateString: string | Date) => {
     const date = new Date(dateString);
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    
+
     if (seconds < 60) return 'Just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes === 1) return '1 minute ago';
     if (minutes < 60) return `${minutes} minutes ago`;
-    
+
     const hours = Math.floor(minutes / 60);
     if (hours === 1) return '1 hour ago';
     return `${hours} hours ago`;
@@ -181,13 +181,13 @@ const OnlineUsersCounter = () => {
           <span className="text-light-darker ml-2">online now</span>
         </div>
       </div>
-      
+
       <div className="mb-6">
         <div className="flex items-center mb-4">
           <FaUserFriends className="text-blue-400 mr-2" />
           <h3 className="text-lg font-semibold">Currently Active Users</h3>
         </div>
-        
+
         <div className="glass-light rounded-lg overflow-hidden">
           <div className="max-h-80 overflow-y-auto">
             {data.onlineUsers.length > 0 ? (
@@ -195,25 +195,23 @@ const OnlineUsersCounter = () => {
                 // Treat user as our extended type with optional avatar
                 const onlineUser = user as OnlineUserWithAvatar;
                 const isNew = newUserIds.includes(onlineUser.id);
-                
+
                 return (
-                  <div 
-                    key={onlineUser.id} 
-                    className={`flex items-center p-3 border-b border-dark-accent/20 last:border-b-0 hover:bg-dark-lighter/30 transition-colors ${
-                      isNew ? 'bg-dark-accent/10' : ''
-                    }`}
+                  <div
+                    key={onlineUser.id}
+                    className={`flex items-center p-3 border-b border-dark-accent/20 last:border-b-0 hover:bg-dark-lighter/30 transition-colors ${isNew ? 'bg-dark-accent/10' : ''
+                      }`}
                   >
                     {/* User avatar - either image or initials */}
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-r from-blue-500/40 to-purple-500/40 flex items-center justify-center mr-3 flex-shrink-0 ${
-                      isNew ? 'ring-2 ring-green-400 ring-opacity-70' : ''
-                    }`}>
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-r from-blue-500/40 to-purple-500/40 flex items-center justify-center mr-3 flex-shrink-0 ${isNew ? 'ring-2 ring-green-400 ring-opacity-70' : ''
+                      }`}>
                       {onlineUser.avatar ? (
                         <img src={onlineUser.avatar} alt={onlineUser.name} className="w-full h-full rounded-full object-cover" />
                       ) : (
                         <span className="text-sm font-medium">{onlineUser.name.split(' ').map(n => n[0]).join('')}</span>
                       )}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
                         <p className="font-medium truncate">{onlineUser.name}</p>
@@ -224,7 +222,7 @@ const OnlineUsersCounter = () => {
                         <p className="text-xs text-blue-400 truncate italic">{onlineUser.lastAction || 'Online'}</p>
                       </div>
                     </div>
-                    
+
                     <div className={`ml-2 w-2 h-2 rounded-full bg-green-500 ${isNew ? 'animate-pulse' : ''}`}></div>
                   </div>
                 );
@@ -237,13 +235,13 @@ const OnlineUsersCounter = () => {
           </div>
         </div>
       </div>
-      
+
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">Activity by Department</h3>
           <span className="text-xs text-light-darker">Real-time data</span>
         </div>
-        
+
         <div className="space-y-3">
           {Object.entries(data.departmentActivity).length > 0 ? (
             Object.entries(data.departmentActivity).map(([department, percentage]) => {
@@ -252,12 +250,12 @@ const OnlineUsersCounter = () => {
                 const deptHash = dept.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
                 const colorIndex = deptHash % 6;
                 const colors = [
-                  'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
+                  'bg-blue-500', 'bg-green-500', 'bg-purple-500',
                   'bg-amber-500', 'bg-cyan-500', 'bg-pink-500'
                 ];
                 return colors[colorIndex];
               };
-              
+
               return (
                 <div key={department} className="glass-light p-3 rounded-lg">
                   <div className="flex justify-between items-center mb-1">
@@ -265,8 +263,8 @@ const OnlineUsersCounter = () => {
                     <span className="text-sm font-bold">{percentage}%</span>
                   </div>
                   <div className="h-2 w-full bg-dark-light rounded-full overflow-hidden">
-                    <div 
-                      className={`h-2 rounded-full ${getColorClass(department)}`} 
+                    <div
+                      className={`h-2 rounded-full ${getColorClass(department)}`}
                       style={{ width: `${percentage}%` }}
                     ></div>
                   </div>
