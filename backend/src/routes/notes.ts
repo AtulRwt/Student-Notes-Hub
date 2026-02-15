@@ -19,22 +19,36 @@ const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '.
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req: any, file: any) => {
-  const isImage = file.mimetype.startsWith('image/');
-  const resourceType = isImage ? 'image' : 'raw';
-  const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
-  
-  // Only force download for Office documents (they can't be viewed anyway)
-  const shouldForceDownload = ['doc', 'docx', 'xls', 'xlsx'].includes(fileExtension || '');
-  
-  return {
-    folder: 'student-notes-uploads',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
-    resource_type: resourceType,
-    format: fileExtension,
-    flags: shouldForceDownload ? 'attachment' : undefined, // Only download Office docs
-    use_filename: true,
-    unique_filename: true,
-  };
+    // 1. Get file extension and name
+    const fileExtension = file.originalname.split('.').pop()?.toLowerCase() || '';
+    const fileName = file.originalname.split('.').slice(0, -1).join('.').replace(/[^a-zA-Z0-9]/g, "_");
+
+    // 2. Create a unique filename WITH extension (Critical for raw files)
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const publicId = `${fileName}-${uniqueSuffix}`;
+
+    // 3. Determine resource type
+    const isImage = file.mimetype.startsWith('image/');
+    const resourceType = isImage ? 'image' : 'raw';
+
+    // 4. Determine if we should force download (Office docs) vs view inline (PDF/Images)
+    const shouldForceDownload = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExtension);
+
+    // CRITICAL FIX: For raw files, we MUST append extension to public_id manually.
+    // Cloudinary stores raw files exactly as named. If no extension in name, URL has no extension.
+    let finalPublicId = publicId;
+    if (resourceType === 'raw' && fileExtension) {
+      finalPublicId = `${publicId}.${fileExtension}`;
+    }
+
+    return {
+      folder: 'student-notes-uploads',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
+      resource_type: resourceType,
+      public_id: finalPublicId,
+      format: fileExtension,
+      flags: shouldForceDownload ? 'attachment' : undefined,
+    };
   },
 } as any);
 
