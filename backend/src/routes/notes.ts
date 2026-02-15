@@ -1,8 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import fs from 'fs';
-import path from 'path';
 import multer from 'multer';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../config/cloudinary';
 import { prisma } from '../index';
 import { auth } from '../middleware/auth';
 import { geminiService } from '../services/ai/gemini';
@@ -10,32 +10,18 @@ import crypto from 'crypto';
 
 export const notesRouter = express.Router();
 
-// Set up multer for file uploads
-const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'));
-
-// Ensure uploads directory exists
-if (!fs.existsSync(uploadDir)) {
-  console.log(`Creating upload directory: ${uploadDir}`);
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-console.log('Using absolute upload directory path:', uploadDir);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    console.log(`File destination: ${uploadDir}`);
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const filename = uniqueSuffix + path.extname(file.originalname);
-    console.log(`Generated filename: ${filename} for original: ${file.originalname}`);
-    cb(null, filename);
-  }
+// Configure Cloudinary storage for multer
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'student-notes-uploads',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
+    resource_type: 'auto', // Automatically detect resource type (image, raw, video)
+  } as any,
 });
 
 const upload = multer({
-  storage,
+  storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max file size
   },
@@ -142,7 +128,7 @@ notesRouter.post('/', auth, uploadMiddleware, async (req: Request, res: Response
         title: validInput.data.title,
         description: validInput.data.description,
         externalUrl: validInput.data.externalUrl,
-        fileUrl: req.file ? `/uploads/${req.file.filename}` : null,
+        fileUrl: req.file ? (req.file as any).path : null, // Cloudinary URL is in req.file.path
         semester: validInput.data.semester,
         courseId: validInput.data.courseId,
         user: {
