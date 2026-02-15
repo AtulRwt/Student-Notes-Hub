@@ -19,19 +19,22 @@ const uploadDir = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '.
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req: any, file: any) => {
-    // Determine resource type based on mimetype
-    const isImage = file.mimetype.startsWith('image/');
-    const resourceType = isImage ? 'image' : 'raw'; // PDFs, docs, etc should be 'raw'
-
-    return {
-      folder: 'student-notes-uploads',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
-      resource_type: resourceType,
-      format: file.originalname.split('.').pop()?.toLowerCase(),
-      flags: 'attachment',
-      use_filename: true,
-      unique_filename: true,
-    };
+  const isImage = file.mimetype.startsWith('image/');
+  const resourceType = isImage ? 'image' : 'raw';
+  const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
+  
+  // Only force download for Office documents (they can't be viewed anyway)
+  const shouldForceDownload = ['doc', 'docx', 'xls', 'xlsx'].includes(fileExtension || '');
+  
+  return {
+    folder: 'student-notes-uploads',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
+    resource_type: resourceType,
+    format: fileExtension,
+    flags: shouldForceDownload ? 'attachment' : undefined, // Only download Office docs
+    use_filename: true,
+    unique_filename: true,
+  };
   },
 } as any);
 
