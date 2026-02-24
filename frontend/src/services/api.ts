@@ -463,3 +463,18 @@ export const settingsAPI = {
     return response.data;
   }
 };
+
+// Onboarding API
+export const onboardingAPI = {
+  // Save chatbot-collected profile data and mark onboarding as complete
+  complete: async (data: {
+    interests: string[];
+    education: string;
+    skillLevel: string;
+    goals: string;
+    preferredContent: string[];
+  }): Promise<{ user: any; message: string }> => {
+    const response = await api.post('/onboarding/complete', data);
+    return response.data;
+  }
+};

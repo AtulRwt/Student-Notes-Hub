@@ -13,6 +13,7 @@ import { feedbackRouter } from './routes/feedback';
 import { settingsRouter } from './routes/settings';
 import { chatRouter } from './routes/chat';
 import uploadRouter from './routes/upload';
+import { onboardingRouter } from './routes/onboarding';
 import { initializeSocket } from './services/socket';
 
 // Load environment variables
@@ -49,6 +50,7 @@ app.use('/api/feedback', feedbackRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/onboarding', onboardingRouter);
 
 // Static files - use absolute paths to ensure consistency
 const uploadsPath = path.resolve(path.join(__dirname, '../uploads'));

@@ -44,25 +44,41 @@ const FeedPage = () => {
   const { user, isAuthenticated } = useAuthStore();
   const { notes, fetchNotes, isLoading } = useNotesStore();
   const [recommendedNotes, setRecommendedNotes] = useState<Note[]>([]);
-  
+
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
-  
+
   useEffect(() => {
     if (notes.length > 0) {
-      // In a real app, this would be a sophisticated recommendation algorithm
-      // For now, we'll just use a random selection of notes
-      const shuffled = [...notes].sort(() => 0.5 - Math.random());
-      setRecommendedNotes(shuffled.slice(0, 8));
+      const userInterests = user?.interests ?? [];
+      if (userInterests.length > 0) {
+        // Score each note by how many tags match the user's interests
+        const scored = notes.map(note => {
+          const score = note.tags.filter(t =>
+            userInterests.some(interest =>
+              t.tag.name.toLowerCase().includes(interest.toLowerCase()) ||
+              interest.toLowerCase().includes(t.tag.name.toLowerCase())
+            )
+          ).length;
+          return { ...note, _relevance: score };
+        });
+        // Sort: matched notes first, then the rest
+        const sorted = scored.sort((a, b) => (b._relevance ?? 0) - (a._relevance ?? 0));
+        setRecommendedNotes(sorted.slice(0, 8));
+      } else {
+        // No interests set yet — fall back to random selection
+        const shuffled = [...notes].sort(() => 0.5 - Math.random());
+        setRecommendedNotes(shuffled.slice(0, 8));
+      }
     }
-  }, [notes]);
-  
+  }, [notes, user?.interests]);
+
   const handleCreateGroup = () => {
     // In a real app, this would open a modal or navigate to a create group page
     alert('Create study group feature coming soon!');
   };
-  
+
   if (!isAuthenticated || !user) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -72,26 +88,26 @@ const FeedPage = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content - Feed */}
         <div className="lg:col-span-2">
-          <FeedComponent 
-            user={user} 
-            notes={recommendedNotes} 
-            isLoading={isLoading} 
+          <FeedComponent
+            user={user}
+            notes={recommendedNotes}
+            isLoading={isLoading}
           />
         </div>
-        
+
         {/* Right Sidebar - Study Groups & Trending */}
         <div className="lg:col-span-1">
-          <StudyGroupsComponent 
-            user={user} 
-            onCreateGroup={handleCreateGroup} 
+          <StudyGroupsComponent
+            user={user}
+            onCreateGroup={handleCreateGroup}
           />
-          
+
           <div className="glass rounded-lg p-6">
             <h2 className="gradient-text text-xl font-bold mb-4">Trending Tags</h2>
             <div className="flex flex-wrap gap-2">
