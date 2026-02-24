@@ -332,8 +332,8 @@ const FileViewer: React.FC<FileViewerProps> = ({ fileUrl }) => {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-medium rounded-lg overflow-hidden w-full max-w-5xl h-4/5 flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50">
+          <div className="bg-dark-medium overflow-hidden w-screen h-screen flex flex-col">
             <div className="flex justify-between items-center p-3 bg-dark-lighter">
               <div className="flex items-center">
                 <fileType.icon className={`${fileType.color} mr-2`} />

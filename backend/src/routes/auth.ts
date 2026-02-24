@@ -4,51 +4,28 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../index';
 import { z } from 'zod';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { auth } from '../middleware/auth';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../config/cloudinary';
 
 export const authRouter = express.Router();
 
-// Set up multer for profile image uploads
-const uploadDir = process.env.PROFILE_UPLOAD_DIR || './uploads/profiles';
-
-// Ensure uploads directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
+// Set up Cloudinary storage for profile image uploads
+const profileStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'student-notes-profiles',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
+    resource_type: 'image',
+    transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+  } as any,
 });
 
 const profileUpload = multer({
-  storage,
+  storage: profileStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB max file size
   },
-  fileFilter: (req, file, cb) => {
-    // Accept image files only
-    const allowedImageTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/bmp', 
-      'image/webp'
-    ];
-    
-    if (allowedImageTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  }
 });
 
 // Validation schemas
@@ -174,7 +151,7 @@ authRouter.get('/me', async (req, res) => {
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret') as { id: string };
-    
+
     // Get user
     const user = await prisma.user.findUnique({
       where: { id: decoded.id }
@@ -187,7 +164,7 @@ authRouter.get('/me', async (req, res) => {
     // Return user info (exclude password)
     const { password, ...userWithoutPassword } = user;
     res.json({ user: userWithoutPassword });
-    
+
   } catch (error) {
     // Handle expired tokens explicitly to help frontend react (logout/refresh)
     if ((error as any)?.name === 'TokenExpiredError') {
@@ -204,14 +181,14 @@ authRouter.put('/profile', auth, profileUpload.single('profileImage'), async (re
   try {
     const userId = req.user!.id;
     const { name, bio, education, interests, socialLinks } = req.body;
-    
+
     // Prepare data for update
     const updateData: any = {};
-    
+
     if (name) updateData.name = name;
     if (bio) updateData.bio = bio;
     if (education) updateData.education = education;
-    
+
     // Parse JSON strings if they exist
     if (interests) {
       try {
@@ -220,7 +197,7 @@ authRouter.put('/profile', auth, profileUpload.single('profileImage'), async (re
         console.error('Error parsing interests:', error);
       }
     }
-    
+
     if (socialLinks) {
       try {
         updateData.socialLinks = JSON.parse(socialLinks);
@@ -228,12 +205,13 @@ authRouter.put('/profile', auth, profileUpload.single('profileImage'), async (re
         console.error('Error parsing socialLinks:', error);
       }
     }
-    
-    // Add profile image if uploaded
+
+    // Add profile image if uploaded via Cloudinary
     if (req.file) {
-      updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
-      
-      // Find and delete old profile image if exists
+      // Cloudinary stores the URL in req.file.path
+      updateData.profileImage = (req.file as any).path;
+
+      // Delete old profile image from Cloudinary if it exists
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -241,29 +219,32 @@ authRouter.put('/profile', auth, profileUpload.single('profileImage'), async (re
           profileImage: true
         }
       });
-      
-      if (user?.profileImage) {
+
+      if (user?.profileImage && user.profileImage.includes('cloudinary')) {
         try {
-          const oldImagePath = path.join(__dirname, '../../', user.profileImage);
-          if (fs.existsSync(oldImagePath)) {
-            fs.unlinkSync(oldImagePath);
+          // Extract public_id from the Cloudinary URL
+          const urlParts = user.profileImage.split('/');
+          const folderAndFile = urlParts.slice(urlParts.indexOf('student-notes-profiles')).join('/');
+          const publicId = folderAndFile.replace(/\.[^.]+$/, ''); // Remove extension
+          if (publicId) {
+            await cloudinary.uploader.destroy(publicId);
           }
         } catch (error) {
-          console.error('Error deleting old profile image:', error);
+          console.error('Error deleting old profile image from Cloudinary:', error);
         }
       }
     }
-    
+
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData
     });
-    
+
     // Return user without password
     const { password, ...userWithoutPassword } = updatedUser;
     res.json(userWithoutPassword);
-    
+
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile' });

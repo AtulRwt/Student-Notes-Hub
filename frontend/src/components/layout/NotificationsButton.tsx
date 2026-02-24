@@ -6,48 +6,45 @@ import NotificationsPanel from '../social/NotificationsPanel';
 const NotificationsButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchUnreadCount();
-    
+
     // Set up interval to check for new notifications every minute
     const interval = setInterval(fetchUnreadCount, 60000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
+  // Close panel when clicking outside
   useEffect(() => {
-    // Add click outside handler
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('click', handleClickOutside);
+      // Use a small delay to avoid the same click that opened the panel from closing it
+      const timer = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
   }, [isOpen]);
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await apiClient.get('/api/users/notifications?limit=1');
-      
-      // Count unread notifications
+      // Fetch a full page of notifications to get an accurate unread count
+      const response = await apiClient.get('/api/users/notifications?limit=50');
+
+      // Count all unread notifications from the response
       const unread = response.data.notifications.filter((n: any) => !n.read).length;
-      
-      // If there are more unread than just the ones on the first page
-      if (unread === response.data.notifications.length && response.data.totalCount > response.data.notifications.length) {
-        setUnreadCount(response.data.totalCount);
-      } else {
-        setUnreadCount(unread);
-      }
+      setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching notifications count:', error);
     }
@@ -60,15 +57,21 @@ const NotificationsButton = () => {
   // Handle notifications being marked as read
   const handleNotificationsRead = () => {
     setUnreadCount(0);
+  };
+
+  const handleClose = () => {
     setIsOpen(false);
+    fetchUnreadCount(); // Refresh count after closing
   };
 
   return (
     <Fragment>
+      {/* Background overlay */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" ref={overlayRef} />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
       )}
-      <div className="relative" ref={containerRef}>
+
+      <div className="relative">
         <button
           onClick={toggleNotifications}
           className="relative p-2 rounded-full hover:bg-dark-light transition-colors"
@@ -81,11 +84,11 @@ const NotificationsButton = () => {
             </span>
           )}
         </button>
-        
+
         {isOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50">
-            <div className="bg-white shadow-lg rounded-lg">
-              <NotificationsPanel onClose={handleNotificationsRead} onNotificationsRead={handleNotificationsRead} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div ref={panelRef} className="pointer-events-auto w-full max-w-md mx-4">
+              <NotificationsPanel onClose={handleClose} onNotificationsRead={handleNotificationsRead} />
             </div>
           </div>
         )}
@@ -94,4 +97,4 @@ const NotificationsButton = () => {
   );
 };
 
-export default NotificationsButton; 
+export default NotificationsButton;

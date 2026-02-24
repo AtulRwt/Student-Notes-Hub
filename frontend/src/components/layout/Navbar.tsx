@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaBook, FaSignInAlt, FaUserPlus, FaSignOutAlt, FaUser, FaBars, FaTimes, FaUserFriends, FaNetworkWired, FaChevronDown, FaCog, FaBell, FaBookmark, FaPen, FaSlidersH, FaQuestionCircle, FaCommentAlt } from 'react-icons/fa';
+import { FaSignInAlt, FaUserPlus, FaSignOutAlt, FaUser, FaBars, FaTimes, FaUserFriends, FaNetworkWired, FaChevronDown, FaCog, FaBell, FaBookmark, FaPen, FaSlidersH, FaQuestionCircle, FaCommentAlt } from 'react-icons/fa';
 import { useAuthStore } from '../../store/authStore';
 import NotificationsButton from './NotificationsButton';
 import Avatar from '../shared/Avatar';
@@ -42,7 +42,13 @@ const Navbar = () => {
           {/* Logo and Brand */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <FaBook className="h-6 w-6 mr-2 text-blue-400" />
+              <svg width="28" height="28" viewBox="0 0 100 100" className="mr-2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Superman shield shape */}
+                <path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="white" stroke="white" strokeWidth="2" />
+                <path d="M50 10 L90 32 L90 68 L50 90 L10 68 L10 32 Z" fill="#0a0a0f" />
+                {/* S letter */}
+                <path d="M60 28 C40 28, 30 35, 30 42 C30 52, 50 50, 50 56 C50 62, 38 62, 28 58 L30 68 C42 74, 70 74, 70 62 C70 52, 50 54, 50 48 C50 42, 62 40, 72 46 L70 36 C65 30, 60 28, 60 28 Z" fill="white" />
+              </svg>
               <span className="gradient-text font-bold text-xl">Student Notes Hub</span>
             </Link>
           </div>
@@ -89,12 +95,12 @@ const Navbar = () => {
                   >
                     <FaCommentAlt className="mr-1 text-green-400" /> Messages
                   </Link>
-                  
+
                   {/* Enhanced Profile Dropdown */}
                   <div className="relative ml-3" ref={profileDropdownRef}>
                     <div className="flex items-center">
                       <NotificationsButton />
-                      
+
                       <button
                         onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                         className="flex items-center space-x-2 ml-2 p-1 rounded-md hover:bg-dark-light transition-colors"
@@ -102,10 +108,10 @@ const Navbar = () => {
                         aria-haspopup="true"
                       >
                         <div className="relative">
-                          <Avatar 
-                            src={user?.profileImage} 
-                            alt={user?.name || ''} 
-                            size="sm" 
+                          <Avatar
+                            src={user?.profileImage}
+                            alt={user?.name || ''}
+                            size="sm"
                             className="border-2 border-blue-500 shadow-md"
                           />
                           <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-1 ring-dark"></span>
@@ -114,16 +120,16 @@ const Navbar = () => {
                         <FaChevronDown className={`text-xs opacity-70 transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
                       </button>
                     </div>
-                    
+
                     {isProfileDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-64 glass-light rounded-md shadow-lg py-1 z-50 border border-dark-accent/50 animate-fadeIn">
                         <div className="px-4 py-3 border-b border-dark-accent/30">
                           <div className="flex items-center">
-                            <Avatar 
-                              src={user?.profileImage} 
-                              alt={user?.name || ''} 
+                            <Avatar
+                              src={user?.profileImage}
+                              alt={user?.name || ''}
                               size="md"
-                              className="border-2 border-blue-500" 
+                              className="border-2 border-blue-500"
                             />
                             <div className="ml-3">
                               <p className="text-sm font-medium">{user?.name}</p>
@@ -135,7 +141,7 @@ const Navbar = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="py-1">
                           <Link
                             to="/profile"
@@ -145,7 +151,7 @@ const Navbar = () => {
                             <FaUser className="text-blue-400" />
                             <span>My Profile</span>
                           </Link>
-                          
+
                           <Link
                             to="/notes/my-notes"
                             className="block px-4 py-2 text-sm hover:bg-dark-light flex items-center space-x-2"
@@ -154,7 +160,7 @@ const Navbar = () => {
                             <FaBookmark className="text-blue-400" />
                             <span>My Notes</span>
                           </Link>
-                          
+
                           <Link
                             to="/profile/edit"
                             className="block px-4 py-2 text-sm hover:bg-dark-light flex items-center space-x-2"
@@ -163,7 +169,7 @@ const Navbar = () => {
                             <FaPen className="text-blue-400" />
                             <span>Edit Profile</span>
                           </Link>
-                          
+
                           <Link
                             to="/settings"
                             className="block px-4 py-2 text-sm hover:bg-dark-light flex items-center space-x-2"
@@ -173,7 +179,7 @@ const Navbar = () => {
                             <span>Settings</span>
                           </Link>
                         </div>
-                        
+
                         <div className="border-t border-dark-accent/30 py-1">
                           <Link
                             to="/help"
@@ -183,7 +189,7 @@ const Navbar = () => {
                             <FaQuestionCircle className="text-blue-400" />
                             <span>Help & Support</span>
                           </Link>
-                          
+
                           <button
                             onClick={() => {
                               handleLogout();
@@ -281,11 +287,11 @@ const Navbar = () => {
                 </Link>
                 <div className="border-t border-dark-accent/20 my-2 pt-2">
                   <div className="flex items-center px-3 py-2">
-                    <Avatar 
-                      src={user?.profileImage} 
-                      alt={user?.name || ''} 
+                    <Avatar
+                      src={user?.profileImage}
+                      alt={user?.name || ''}
                       size="sm"
-                      className="border-2 border-blue-500" 
+                      className="border-2 border-blue-500"
                     />
                     <div className="ml-2">
                       <div className="text-sm font-medium">{user?.name}</div>
