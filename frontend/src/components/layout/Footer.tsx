@@ -28,7 +28,7 @@ const Footer = () => {
             
             <div className="gradient-border p-2 rounded-full flex justify-center items-center bg-dark">
               <a
-                href="https://github.com/yourusername/student-notes-hub"
+                href="https://github.com/AtulRwt/Student-Notes-Hub"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 transition-colors"

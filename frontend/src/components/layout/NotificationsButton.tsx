@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { FaBell } from 'react-icons/fa';
 import apiClient from '../../api/axios';
 import NotificationsPanel from '../social/NotificationsPanel';
@@ -7,6 +7,7 @@ const NotificationsButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -59,29 +60,37 @@ const NotificationsButton = () => {
   // Handle notifications being marked as read
   const handleNotificationsRead = () => {
     setUnreadCount(0);
+    setIsOpen(false);
   };
 
   return (
-    <div className="relative" ref={containerRef}>
-      <button
-        onClick={toggleNotifications}
-        className="relative p-2 rounded-full hover:bg-dark-light transition-colors"
-        aria-label="Notifications"
-      >
-        <FaBell size={18} />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-      
+    <Fragment>
       {isOpen && (
-        <div className="absolute right-0 mt-2 z-50 animate-fadeIn">
-          <NotificationsPanel onClose={() => setIsOpen(false)} onNotificationsRead={handleNotificationsRead} />
-        </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" ref={overlayRef} />
       )}
-    </div>
+      <div className="relative" ref={containerRef}>
+        <button
+          onClick={toggleNotifications}
+          className="relative p-2 rounded-full hover:bg-dark-light transition-colors"
+          aria-label="Notifications"
+        >
+          <FaBell size={18} />
+          {unreadCount > 0 && (
+            <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+        
+        {isOpen && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white shadow-lg rounded-lg">
+              <NotificationsPanel onClose={handleNotificationsRead} onNotificationsRead={handleNotificationsRead} />
+            </div>
+          </div>
+        )}
+      </div>
+    </Fragment>
   );
 };
 
