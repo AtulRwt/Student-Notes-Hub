@@ -1,6 +1,234 @@
 import React, { useState, useEffect } from 'react';
-import { FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaDownload, FaEye, FaTimes, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import {
+  FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile,
+  FaDownload, FaEye, FaTimes, FaFilePowerpoint, FaFileCsv,
+  FaFileArchive, FaFileAlt
+} from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+
+// ────────────────────────────────────────────────────────────────────────────
+// Sub-viewers
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Renders plain-text / CSV content fetched from a URL */
+const TextFileViewer: React.FC<{ url: string; isCSV?: boolean }> = ({ url, isCSV = false }) => {
+  const [content, setContent] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
+        return res.text();
+      })
+      .then((data) => {
+        setContent(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Error fetching text file:', err);
+        setError(err.message || 'Failed to load file contents');
+        setLoading(false);
+      });
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-dark-lighter text-light">
+        <div className="spinner w-12 h-12 border-4 border-t-yellow-500 border-r-transparent border-b-yellow-500 border-l-transparent rounded-full animate-spin mb-4"></div>
+        <p>Loading file content…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-dark-lighter text-light p-6 text-center">
+        <FaFile className="text-yellow-500 text-6xl mb-4" />
+        <p className="text-red-400 font-semibold mb-2">Error loading preview</p>
+        <p className="text-light-darker text-sm max-w-md mb-4">{error}</p>
+        <a
+          href={url}
+          download
+          className="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors"
+        >
+          Download File instead
+        </a>
+      </div>
+    );
+  }
+
+  if (isCSV) {
+    // Render CSV as an HTML table
+    const rows = content.split('\n').filter((r) => r.trim().length > 0);
+    const parsed = rows.map((row) => row.split(',').map((cell) => cell.trim().replace(/^"|"$/g, '')));
+
+    return (
+      <div className="w-full h-full overflow-auto bg-dark-lighter p-4">
+        <table className="w-full border-collapse text-sm text-light">
+          <thead>
+            {parsed[0] && (
+              <tr className="bg-dark-medium sticky top-0">
+                {parsed[0].map((cell, i) => (
+                  <th key={i} className="border border-dark-accent px-3 py-2 text-left font-semibold text-yellow-400">
+                    {cell || `Column ${i + 1}`}
+                  </th>
+                ))}
+              </tr>
+            )}
+          </thead>
+          <tbody>
+            {parsed.slice(1).map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 0 ? 'bg-dark-lighter' : 'bg-dark-medium'}>
+                {row.map((cell, ci) => (
+                  <td key={ci} className="border border-dark-accent px-3 py-1.5">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full p-6 overflow-auto bg-dark-lighter text-light font-mono text-sm whitespace-pre-wrap select-text leading-relaxed">
+      {content}
+    </div>
+  );
+};
+
+/** Renders an image */
+const ImageViewer: React.FC<{ url: string; onError: () => void }> = ({ url, onError }) => (
+  <div className="w-full h-full flex items-center justify-center bg-dark-medium p-4">
+    <img
+      src={url}
+      alt="File Preview"
+      className="max-w-full max-h-full object-contain rounded shadow-lg"
+      onError={onError}
+    />
+  </div>
+);
+
+/** Renders a PDF via native browser iframe */
+const PDFViewer: React.FC<{ url: string; onLoad: () => void; onError: () => void; loading: boolean }> = ({
+  url, onLoad, onError, loading,
+}) => (
+  <div className="w-full h-full bg-dark-lighter rounded relative">
+    {loading && (
+      <div className="absolute inset-0 flex items-center justify-center z-10 bg-dark-medium bg-opacity-70">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-t-red-500 border-r-transparent border-b-red-500 border-l-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-light">Loading PDF…</p>
+        </div>
+      </div>
+    )}
+    <iframe src={url} className="w-full h-full border-0" title="PDF Viewer" onLoad={onLoad} onError={onError} />
+  </div>
+);
+
+/** Renders Office / other docs via Microsoft Office Online viewer */
+const OfficeOnlineViewer: React.FC<{
+  url: string; label: string; onLoad: () => void; onError: () => void; loading: boolean;
+}> = ({ url, label, onLoad, onError, loading }) => {
+  const officeUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  return (
+    <div className="w-full h-full bg-dark-lighter rounded relative">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-dark-medium bg-opacity-70">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-light">Loading {label}…</p>
+          </div>
+        </div>
+      )}
+      <iframe
+        src={officeUrl}
+        className="w-full h-full border-0"
+        title={`${label} Viewer`}
+        onLoad={onLoad}
+        onError={onError}
+      />
+    </div>
+  );
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Safely extract file extension from a path or URL (strips query strings).
+ */
+function getExtension(fileUrl: string): string {
+  try {
+    if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+      const pathname = new URL(fileUrl).pathname;
+      return (pathname.split('.').pop() || '').toLowerCase();
+    }
+  } catch {
+    // fall through
+  }
+  return (fileUrl.split('.').pop() || '').toLowerCase();
+}
+
+type FileCategory =
+  | 'pdf'
+  | 'word'
+  | 'excel'
+  | 'powerpoint'
+  | 'image'
+  | 'text'
+  | 'csv'
+  | 'archive'
+  | 'unknown';
+
+interface FileTypeInfo {
+  type: FileCategory;
+  icon: React.ElementType;
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
+function getFileTypeInfo(fileUrl: string): FileTypeInfo {
+  const ext = getExtension(fileUrl);
+
+  if (ext === 'pdf') {
+    return { type: 'pdf', icon: FaFilePdf, label: 'PDF', color: 'text-red-500', bgColor: 'bg-red-500/20' };
+  }
+  if (['doc', 'docx', 'odt', 'rtf'].includes(ext)) {
+    return { type: 'word', icon: FaFileWord, label: 'Word Document', color: 'text-blue-500', bgColor: 'bg-blue-500/20' };
+  }
+  if (['xls', 'xlsx', 'ods'].includes(ext)) {
+    return { type: 'excel', icon: FaFileExcel, label: 'Excel Spreadsheet', color: 'text-green-500', bgColor: 'bg-green-500/20' };
+  }
+  if (['ppt', 'pptx', 'odp'].includes(ext)) {
+    return { type: 'powerpoint', icon: FaFilePowerpoint, label: 'Presentation', color: 'text-orange-500', bgColor: 'bg-orange-500/20' };
+  }
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tif', 'tiff', 'ico'].includes(ext)) {
+    return { type: 'image', icon: FaFileImage, label: 'Image', color: 'text-purple-500', bgColor: 'bg-purple-500/20' };
+  }
+  if (ext === 'csv' || ext === 'tsv') {
+    return { type: 'csv', icon: FaFileCsv, label: 'CSV Spreadsheet', color: 'text-teal-500', bgColor: 'bg-teal-500/20' };
+  }
+  if (ext === 'txt') {
+    return { type: 'text', icon: FaFileAlt, label: 'Text File', color: 'text-yellow-500', bgColor: 'bg-yellow-500/20' };
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+    return { type: 'archive', icon: FaFileArchive, label: 'Archive', color: 'text-gray-400', bgColor: 'bg-gray-500/20' };
+  }
+  return { type: 'unknown', icon: FaFile, label: 'File', color: 'text-gray-400', bgColor: 'bg-gray-500/20' };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// FileViewer component
+// ────────────────────────────────────────────────────────────────────────────
 
 interface FileViewerProps {
   fileUrl: string;
@@ -9,295 +237,148 @@ interface FileViewerProps {
 const FileViewer: React.FC<FileViewerProps> = ({ fileUrl }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
-  // For PDF viewer
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const [pdfViewerUrl, setPdfViewerUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [absoluteFileUrl, setAbsoluteFileUrl] = useState('');
 
-  // Get absolute URL for file
+  // Resolve absolute URL
   useEffect(() => {
-    // Make sure we have a complete URL including the server address
-    if (fileUrl) {
-      // If fileUrl starts with http, it's already absolute
-      if (fileUrl.startsWith('http')) {
-        setAbsoluteFileUrl(fileUrl);
-      } else {
-        // Otherwise, construct the absolute URL
-        const apiBaseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:5000'; // Base URL for your backend
-        const absoluteUrl = fileUrl.startsWith('/')
-          ? `${apiBaseUrl}${fileUrl}`
-          : `${apiBaseUrl}/${fileUrl}`;
-
-        setAbsoluteFileUrl(absoluteUrl);
-        console.log('Converted file URL:', fileUrl, 'to absolute:', absoluteUrl);
-      }
+    if (!fileUrl) return;
+    if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+      setAbsoluteFileUrl(fileUrl);
+    } else {
+      const base = import.meta.env.VITE_WS_URL || 'http://localhost:5000';
+      setAbsoluteFileUrl(fileUrl.startsWith('/') ? `${base}${fileUrl}` : `${base}/${fileUrl}`);
     }
   }, [fileUrl]);
 
-  const getFileType = () => {
-    if (!fileUrl) return {
-      type: 'unknown',
-      icon: FaFile,
-      label: 'File',
-      color: 'text-gray-400',
-      bgColor: 'bg-gray-500/20'
-    };
+  const fileType = getFileTypeInfo(fileUrl || absoluteFileUrl);
 
-    const fileExt = fileUrl.split('.').pop()?.toLowerCase();
-
-    if (fileExt === 'pdf') {
-      return {
-        type: 'pdf',
-        icon: FaFilePdf,
-        label: 'PDF',
-        color: 'text-red-500',
-        bgColor: 'bg-red-500/20'
-      };
-    } else if (['doc', 'docx'].includes(fileExt || '')) {
-      return {
-        type: 'word',
-        icon: FaFileWord,
-        label: 'Word Document',
-        color: 'text-blue-500',
-        bgColor: 'bg-blue-500/20'
-      };
-    } else if (['xls', 'xlsx'].includes(fileExt || '')) {
-      return {
-        type: 'excel',
-        icon: FaFileExcel,
-        label: 'Excel Spreadsheet',
-        color: 'text-green-500',
-        bgColor: 'bg-green-500/20'
-      };
-    } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt || '')) {
-      return {
-        type: 'image',
-        icon: FaFileImage,
-        label: 'Image',
-        color: 'text-purple-500',
-        bgColor: 'bg-purple-500/20'
-      };
-    } else {
-      return {
-        type: 'unknown',
-        icon: FaFile,
-        label: 'File',
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-500/20'
-      };
-    }
+  const handleOpen = () => {
+    setIsOpen(true);
+    setViewerError(null);
+    setIsLoading(true);
   };
 
-  const fileType = getFileType();
-
-  useEffect(() => {
-    // If viewer is opened, set up the appropriate viewer
-    if (isOpen && absoluteFileUrl) {
-      setIsPdfLoading(true);
-
-      if (fileType.type === 'pdf') {
-        // Use Mozilla's PDF.js viewer for PDFs
-        const pdfViewerCdnUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html';
-        const encodedPdfUrl = encodeURIComponent(absoluteFileUrl);
-        const fullViewerUrl = `${pdfViewerCdnUrl}?file=${encodedPdfUrl}`;
-
-        console.log('Setting up PDF viewer with URL:', fullViewerUrl);
-        setPdfViewerUrl(fullViewerUrl);
-      }
-      // No need to set pdfViewerUrl for other file types as they use Google Docs Viewer directly in the iframe
-    }
-  }, [isOpen, fileType.type, absoluteFileUrl]);
-
-  const handleError = (e: React.SyntheticEvent<HTMLElement>) => {
-    console.error('Error loading file:', e);
-    setViewerError("Unable to load the preview");
-
-    // Try to fetch the file directly to check if it's accessible
-    fetch(absoluteFileUrl)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
-        }
-        console.log('File is accessible via fetch, but viewer failed');
-
-        // If this is a Word or Excel file, show a specific message about Google Docs viewer
-        if (fileType.type === 'word' || fileType.type === 'excel') {
-          toast.error('Google Docs viewer could not display this file. Try downloading it instead.');
-        }
-      })
-      .catch(error => {
-        console.error('File fetch error:', error);
-        toast.error(`File access error: ${error.message}`);
-      });
+  const handleClose = () => setIsOpen(false);
+  const handleLoad = () => setIsLoading(false);
+  const handleError = () => {
+    setIsLoading(false);
+    setViewerError('Preview failed to load.');
+    toast.error('Preview could not be loaded. Try downloading the file.');
   };
 
-  const handlePdfLoad = () => {
-    setIsPdfLoading(false);
-  };
+  /** Fallback UI shown when a viewer fails */
+  const FallbackActions = () => (
+    <div className="flex flex-col items-center justify-center h-full">
+      <fileType.icon className={`${fileType.color} text-8xl mb-6`} />
+      <p className="text-light text-xl mb-2">{fileType.label}</p>
+      <p className="text-light-darker mb-6 text-center max-w-md">
+        Preview failed to load. You can download the file or open it in a new tab.
+      </p>
+      <div className="flex gap-3 flex-wrap justify-center">
+        <a
+          href={absoluteFileUrl}
+          download
+          className={`${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors flex items-center gap-2`}
+        >
+          <FaDownload /> Download File
+        </a>
+        <a
+          href={absoluteFileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-dark text-light px-4 py-2 rounded-md font-medium hover:bg-dark-medium transition-colors flex items-center gap-2"
+        >
+          <FaEye /> Open in New Tab
+        </a>
+      </div>
+    </div>
+  );
 
-  // Function to create a Microsoft Office Online viewer URL
-  const createOfficeOnlineViewerUrl = (fileUrl: string) => {
-    // Microsoft Office Online viewer URL pattern
-    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}`;
-  };
+  const renderPreview = () => {
+    if (!absoluteFileUrl) return null;
+    if (viewerError) return <FallbackActions />;
 
-  // Function to create Google Docs viewer URL  
-  const createGoogleDocsViewerUrl = (fileUrl: string) => {
-    return `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-  };
-
-  const renderFilePreview = () => {
     switch (fileType.type) {
       case 'pdf':
         return (
-          <div className="w-full h-full bg-dark-lighter rounded relative">
-            {!viewerError ? (
-              <>
-                {isPdfLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10 bg-dark-medium bg-opacity-70">
-                    <div className="text-center">
-                      <div className="spinner w-12 h-12 border-4 border-t-red-500 border-r-transparent border-b-red-500 border-l-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-light">Loading PDF...</p>
-                    </div>
-                  </div>
-                )}
-                <iframe
-                  src={pdfViewerUrl}
-                  className="w-full h-full border-0"
-                  title="PDF Viewer"
-                  onLoad={handlePdfLoad}
-                  onError={handleError}
-                  sandbox="allow-scripts allow-same-origin allow-forms"
-                  referrerPolicy="no-referrer"
-                />
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full">
-                <fileType.icon className={`${fileType.color} text-6xl mb-4`} />
-                <p className="text-light">PDF preview failed to load</p>
-                <p className="text-light-darker text-sm mb-4">The PDF viewer couldn't display this document</p>
-                <div className="flex space-x-4">
-                  <a
-                    href={absoluteFileUrl}
-                    download
-                    className={`${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors flex items-center`}
-                  >
-                    <FaDownload className="mr-2" /> Download PDF
-                  </a>
-                  <a
-                    href={absoluteFileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-dark text-light px-4 py-2 rounded-md font-medium hover:bg-dark-medium transition-colors flex items-center"
-                  >
-                    <FaEye className="mr-2" /> Open in New Tab
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
+          <PDFViewer
+            url={absoluteFileUrl}
+            onLoad={handleLoad}
+            onError={handleError}
+            loading={isLoading}
+          />
         );
 
       case 'image':
         return (
-          <div className="w-full h-full flex items-center justify-center bg-dark-medium">
-            <img
-              src={absoluteFileUrl}
-              alt="File Preview"
-              className="max-w-full max-h-full object-contain"
-              onError={handleError}
-            />
-            {viewerError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-dark-medium bg-opacity-90">
-                <fileType.icon className={`${fileType.color} text-6xl mb-4`} />
-                <p className="text-light">Image failed to load</p>
-                <a
-                  href={absoluteFileUrl}
-                  download
-                  className="gradient-border bg-dark px-4 py-2 rounded-md font-medium hover:bg-dark-light transition-colors mt-4"
-                >
-                  <FaDownload className="mr-2 inline" /> Download Image
-                </a>
-              </div>
-            )}
-          </div>
+          <ImageViewer
+            url={absoluteFileUrl}
+            onError={handleError}
+          />
         );
+
+      case 'text':
+        return <TextFileViewer url={absoluteFileUrl} />;
+
+      case 'csv':
+        return <TextFileViewer url={absoluteFileUrl} isCSV />;
 
       case 'word':
       case 'excel':
-        // Use Microsoft Office Online viewer for Word and Excel documents
+      case 'powerpoint':
         return (
-          <div className="w-full h-full bg-dark-lighter rounded relative">
-            {!viewerError ? (
-              <>
-                {isPdfLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10 bg-dark-medium bg-opacity-70">
-                    <div className="text-center">
-                      <div className="spinner w-12 h-12 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-light">Loading Document...</p>
-                    </div>
-                  </div>
-                )}
-                <iframe
-                  src={createOfficeOnlineViewerUrl(absoluteFileUrl)}
-                  className="w-full h-full border-0"
-                  title={`${fileType.label} Viewer`}
-                  onLoad={handlePdfLoad}
-                  onError={handleError}
-                />
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full">
-                <fileType.icon className={`${fileType.color} text-6xl mb-4`} />
-                <p className="text-light">{fileType.label} preview failed to load</p>
-                <p className="text-light-darker text-sm mb-4">Microsoft Office Online viewer cannot access local files. Try downloading instead.</p>
-                <div className="flex space-x-4">
-                  <a
-                    href={absoluteFileUrl}
-                    download
-                    className={`${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors flex items-center`}
-                  >
-                    <FaDownload className="mr-2" /> Download {fileType.label}
-                  </a>
-                  <a
-                    href={absoluteFileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-dark text-light px-4 py-2 rounded-md font-medium hover:bg-dark-medium transition-colors flex items-center"
-                  >
-                    <FaEye className="mr-2" /> Open in New Tab
-                  </a>
-                </div>
-              </div>
-            )}
+          <OfficeOnlineViewer
+            url={absoluteFileUrl}
+            label={fileType.label}
+            onLoad={handleLoad}
+            onError={handleError}
+            loading={isLoading}
+          />
+        );
+
+      case 'archive':
+        // Archives can't be previewed; show download prompt immediately
+        return (
+          <div className="flex flex-col items-center justify-center h-full">
+            <fileType.icon className={`${fileType.color} text-8xl mb-6`} />
+            <p className="text-light text-xl mb-2">{fileType.label}</p>
+            <p className="text-light-darker mb-6 text-center max-w-md">
+              Archive files cannot be previewed in the browser.
+            </p>
+            <a
+              href={absoluteFileUrl}
+              download
+              className={`${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors flex items-center gap-2`}
+            >
+              <FaDownload /> Download Archive
+            </a>
           </div>
         );
 
       default:
-        // Simplified view for other document types with clear message about limitations
         return (
-          <div className="flex flex-col items-center justify-center h-full bg-dark-lighter rounded relative">
-            <fileType.icon className={`${fileType.color} text-8xl mb-6`} />
+          <div className="flex flex-col items-center justify-center h-full">
+            <fileType.icon className="text-gray-400 text-8xl mb-6" />
             <p className="text-light text-xl mb-2">{fileType.label || 'File'}</p>
             <p className="text-light-darker mb-6 text-center max-w-md">
-              Online preview isn't available for local files. <br />
-              This feature will work when deployed to a public server.
+              In-browser preview is not available for this file type.
             </p>
-            <div className="flex space-x-4">
+            <div className="flex gap-3 flex-wrap justify-center">
               <a
                 href={absoluteFileUrl}
                 download
-                className={`${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors flex items-center`}
+                className="bg-gray-500/20 text-gray-400 px-4 py-2 rounded-md font-medium hover:opacity-80 transition-colors flex items-center gap-2"
               >
-                <FaDownload className="mr-2" /> Download File
+                <FaDownload /> Download File
               </a>
               <a
                 href={absoluteFileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-dark text-light px-4 py-2 rounded-md font-medium hover:bg-dark-medium transition-colors flex items-center"
+                className="bg-dark text-light px-4 py-2 rounded-md font-medium hover:bg-dark-medium transition-colors flex items-center gap-2"
               >
-                <FaEye className="mr-2" /> Open in Browser
+                <FaEye /> Open in New Tab
               </a>
             </div>
           </div>
@@ -308,40 +389,23 @@ const FileViewer: React.FC<FileViewerProps> = ({ fileUrl }) => {
   return (
     <div>
       <button
-        onClick={() => {
-          setIsOpen(true);
-          setViewerError(null); // Reset any previous errors
-          setIsPdfLoading(true); // Always start with loading state for PDFs
-
-          // Show helpful message for non-PDF files in local development
-          if (fileType.type !== 'pdf' && fileType.type !== 'image') {
-            toast(
-              "Online document preview requires a publicly accessible URL. " +
-              "When deployed to a public server, this feature will work properly.",
-              {
-                duration: 5000,
-                icon: '📄'
-              }
-            );
-          }
-        }}
-        className={`flex items-center ${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md hover:opacity-80 transition-colors`}
+        onClick={handleOpen}
+        className={`flex items-center gap-2 ${fileType.bgColor} ${fileType.color} px-4 py-2 rounded-md hover:opacity-80 transition-colors`}
         title={`View ${fileType.label}`}
       >
-        <FaEye className="mr-2" /> View {fileType.label}
+        <FaEye /> View {fileType.label}
       </button>
 
       {isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-[9999] overflow-hidden" style={{ isolation: 'isolate' }}>
           <div className="bg-dark-medium w-full h-full flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-3 bg-dark-lighter">
-              <div className="flex items-center">
-                <fileType.icon className={`${fileType.color} mr-2`} />
-                <span className="text-light font-medium">
-                  {fileType.label} Viewer
-                </span>
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 bg-dark-lighter border-b border-dark-accent">
+              <div className="flex items-center gap-2">
+                <fileType.icon className={fileType.color} />
+                <span className="text-light font-medium">{fileType.label} Viewer</span>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <a
                   href={absoluteFileUrl}
                   download
@@ -350,8 +414,17 @@ const FileViewer: React.FC<FileViewerProps> = ({ fileUrl }) => {
                 >
                   <FaDownload className="text-light" />
                 </a>
+                <a
+                  href={absoluteFileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 hover:bg-dark-medium rounded-full transition-colors"
+                  title="Open in new tab"
+                >
+                  <FaEye className="text-light" />
+                </a>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleClose}
                   className="p-2 hover:bg-dark-medium rounded-full transition-colors"
                   title="Close viewer"
                 >
@@ -359,8 +432,10 @@ const FileViewer: React.FC<FileViewerProps> = ({ fileUrl }) => {
                 </button>
               </div>
             </div>
+
+            {/* Viewer body */}
             <div className="flex-1 overflow-hidden bg-dark">
-              {renderFilePreview()}
+              {renderPreview()}
             </div>
           </div>
         </div>

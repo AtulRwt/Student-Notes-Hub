@@ -38,8 +38,8 @@ const storage = new CloudinaryStorage({
     if (isImage) resourceType = 'image';
     if (isPdf) resourceType = 'auto';
 
-    // 4. Determine if we should force download (Office docs) vs view inline (PDF/Images)
-    const shouldForceDownload = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExtension);
+    // 4. Do NOT force download (Office docs) so they can be viewed inline via in-app viewers (Google Docs / MS Office)
+    const flags = undefined;
 
     // CRITICAL FIX: For raw files, we MUST append extension to public_id manually.
     // Cloudinary stores raw files exactly as named. If no extension in name, URL has no extension.
@@ -50,11 +50,18 @@ const storage = new CloudinaryStorage({
 
     return {
       folder: 'student-notes-uploads',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
+      allowed_formats: [
+        // Documents
+        'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'rtf', 'odt', 'odp', 'ods',
+        // Images
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tif', 'tiff', 'ico',
+        // Archives
+        'zip', 'rar',
+      ],
       resource_type: resourceType,
       public_id: finalPublicId,
       format: fileExtension,
-      flags: shouldForceDownload ? 'attachment' : undefined,
+      flags: flags,
     };
   },
 } as any);
@@ -62,35 +69,56 @@ const storage = new CloudinaryStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    fileSize: 25 * 1024 * 1024, // 25MB max file size
   },
   fileFilter: (req, file, cb) => {
     console.log(`Checking file type: ${file.mimetype} for file: ${file.originalname}`);
-    // Accept multiple document types
-    const allowedMimeTypes = [
-      // PDF files
+
+    const allowedMimeTypes = new Set([
       'application/pdf',
-      // Word documents
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      // Excel spreadsheets
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      // Image files
+      'text/plain',
+      'text/csv',
+      'text/tab-separated-values',
+      'application/rtf',
+      'text/rtf',
+      'application/vnd.oasis.opendocument.text',
+      'application/vnd.oasis.opendocument.spreadsheet',
+      'application/vnd.oasis.opendocument.presentation',
       'image/jpeg',
       'image/png',
       'image/gif',
       'image/bmp',
       'image/webp',
-      'image/tiff'
-    ];
+      'image/tiff',
+      'image/svg+xml',
+      'application/zip',
+      'application/x-rar-compressed',
+      'application/vnd.rar',
+      'application/octet-stream', // generic fallback some browsers use for docx/pptx
+    ]);
 
-    if (allowedMimeTypes.includes(file.mimetype)) {
-      console.log(`File type ${file.mimetype} is allowed`);
+    const allowedExts = new Set([
+      'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
+      'txt', 'csv', 'tsv', 'rtf', 'odt', 'odp', 'ods',
+      'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tif', 'tiff',
+      'zip', 'rar',
+    ]);
+
+    const fileExt = (file.originalname.split('.').pop() || '').toLowerCase();
+    const isAllowed = allowedMimeTypes.has(file.mimetype) || allowedExts.has(fileExt);
+
+    if (isAllowed) {
+      console.log(`File type ${file.mimetype} (.${fileExt}) is allowed`);
       cb(null, true);
     } else {
-      console.log(`File type ${file.mimetype} is not allowed`);
-      cb(new Error(`File type ${file.mimetype} is not allowed. Only PDF, Word, Excel, and Image files are allowed`));
+      console.log(`File type ${file.mimetype} (.${fileExt}) is not allowed`);
+      cb(new Error(`File type "${file.mimetype}" (.${fileExt}) is not supported.`));
     }
   }
 });
@@ -813,77 +841,92 @@ notesRouter.get('/:id/summarize', auth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Note not found' });
     }
 
-    // Check if the note has a file
-    if (!note.fileUrl) {
-      return res.status(400).json({ error: 'Note has no file to summarize' });
-    }
-
     // Check if user already has a summary for this note
-    const existingSummary = await prisma.$queryRaw`
-      SELECT * FROM "NoteSummary" 
-      WHERE "noteId" = ${id} AND "userId" = ${userId}
-      LIMIT 1
-    `;
+    const existingSummary = await prisma.noteSummary.findUnique({
+      where: {
+        noteId_userId: {
+          noteId: id,
+          userId: userId
+        }
+      }
+    });
 
     // If summary exists, return it without regenerating
-    if (existingSummary && Array.isArray(existingSummary) && existingSummary.length > 0) {
-      return res.json({ summary: existingSummary[0].content });
+    if (existingSummary) {
+      return res.json({ summary: existingSummary.content });
     }
 
-    // Extract file path from URL
-    const fileName = note.fileUrl.split('/').pop();
-    if (!fileName) {
-      return res.status(400).json({ error: 'Invalid file URL' });
-    }
+    let summary = '';
+    let usedFallback = false;
 
-    // Log info for debugging
-    console.log('File URL:', note.fileUrl);
-    console.log('Extracted filename:', fileName);
+    // Resolve file summarization
+    if (note.fileUrl) {
+      if (note.fileUrl.startsWith('http://') || note.fileUrl.startsWith('https://')) {
+        try {
+          console.log(`Generating summary for remote file URL: ${note.fileUrl}`);
+          summary = await geminiService.summarizeFile(note.fileUrl);
+        } catch (err) {
+          console.warn(`Remote file summarization failed for ${note.fileUrl}:`, err);
+          usedFallback = true;
+        }
+      } else {
+        // File is stored as a relative path (e.g. /uploads/filename.pdf)
+        const fileName = note.fileUrl.split('/').pop();
+        if (fileName) {
+          const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+          const filePath = path.join(uploadDir, fileName);
+          console.log(`Attempting to access local file at: ${filePath}`);
 
-    // Get upload directory - use path.join for better path handling
-    const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../../../uploads');
-    console.log('Upload directory:', uploadDir);
-
-    // Construct absolute file path
-    const filePath = path.join(uploadDir, fileName);
-    console.log('Attempting to access file at:', filePath);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      console.error('File not found at path:', filePath);
-
-      // Try alternative path construction as fallback
-      const altPath = path.join(process.cwd(), 'uploads', fileName);
-      console.log('Trying alternative path:', altPath);
-
-      if (fs.existsSync(altPath)) {
-        console.log('File found at alternative path');
-        // Generate summary using Gemini API
-        const summary = await geminiService.summarizeFile(altPath);
-
-        // Store the summary in the database as user-specific
-        await prisma.$executeRaw`
-          INSERT INTO "NoteSummary" ("id", "content", "noteId", "userId", "createdAt", "updatedAt")
-          VALUES (${crypto.randomUUID()}, ${summary}, ${id}, ${userId}, NOW(), NOW())
-        `;
-
-        return res.json({ summary: summary });
+          if (fs.existsSync(filePath)) {
+            try {
+              console.log(`Generating summary for local file: ${filePath}`);
+              summary = await geminiService.summarizeFile(filePath);
+            } catch (err) {
+              console.warn(`Local file summarization failed:`, err);
+              usedFallback = true;
+            }
+          } else {
+            console.log(`Local file not found at ${filePath}. Falling back to metadata-based summary.`);
+            usedFallback = true;
+          }
+        } else {
+          usedFallback = true;
+        }
       }
-
-      return res.status(404).json({ error: 'File not found' });
+    } else {
+      usedFallback = true;
     }
 
-    // Generate summary using Gemini API
-    console.log(`Generating summary for file: ${filePath}`);
-    const summary = await geminiService.summarizeFile(filePath);
+    // If file summarization failed or was skipped, generate summary from metadata (title + description)
+    if (usedFallback || !summary || summary.includes('Summary unavailable')) {
+      console.log(`Generating summary from note metadata (Title: "${note.title}")`);
+      const contextText = `Note Title: ${note.title}\n\nNote Description: ${note.description || 'No description provided.'}`;
+      summary = await geminiService.summarizeText(contextText);
+    }
 
-    // Store the summary in the database as user-specific
-    await prisma.$executeRaw`
-      INSERT INTO "NoteSummary" ("id", "content", "noteId", "userId", "createdAt", "updatedAt")
-      VALUES (${crypto.randomUUID()}, ${summary}, ${id}, ${userId}, NOW(), NOW())
-    `;
+    // Store the summary in the database as user-specific (upsert to handle re-generation)
+    const savedSummary = await prisma.noteSummary.upsert({
+      where: {
+        noteId_userId: {
+          noteId: id,
+          userId: userId
+        }
+      },
+      update: {
+        content: summary,
+        updatedAt: new Date()
+      },
+      create: {
+        id: crypto.randomUUID(),
+        content: summary,
+        noteId: id,
+        userId: userId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
 
-    return res.json({ summary: summary });
+    return res.json({ summary: savedSummary.content });
   } catch (error) {
     console.error('Error summarizing note:', error);
     return res.status(500).json({ error: 'Failed to summarize note: ' + (error instanceof Error ? error.message : 'Unknown error') });

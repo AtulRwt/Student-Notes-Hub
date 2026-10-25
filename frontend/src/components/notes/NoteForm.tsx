@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { FaUpload, FaLink, FaBookOpen, FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaRobot, FaCheckCircle } from 'react-icons/fa';
+import { FaUpload, FaLink, FaBookOpen, FaFilePdf, FaFileWord, FaFileExcel, FaFileImage, FaFile, FaRobot, FaCheckCircle, FaFilePowerpoint, FaFileCsv, FaFileAlt, FaFileArchive } from 'react-icons/fa';
 import { useNotesStore } from '../../store/notesStore';
 import { useTagsStore } from '../../store/tagsStore';
 import type { NoteFormData, Note, ResourceType, Course } from '../../types';
@@ -164,28 +164,58 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
     console.log('File selected:', file?.name, file?.type, file?.size);
 
     if (file) {
-      // Check file type
-      const allowedTypes = [
-        // PDF
+      // Check file type (MIME or extension-based)
+      const allowedMimeTypes = new Set([
         'application/pdf',
-        // Word
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        // Excel
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        // Images
+        'text/plain',
+        'text/csv',
+        'text/tab-separated-values',
+        'application/rtf',
+        'text/rtf',
+        'application/vnd.oasis.opendocument.text',
+        'application/vnd.oasis.opendocument.spreadsheet',
+        'application/vnd.oasis.opendocument.presentation',
         'image/jpeg',
         'image/png',
         'image/gif',
         'image/bmp',
-        'image/webp'
-      ];
+        'image/webp',
+        'image/tiff',
+        'image/svg+xml',
+        'application/zip',
+        'application/x-rar-compressed',
+        'application/vnd.rar',
+        'application/octet-stream', // generic fallback used by some browsers for docx/pptx
+      ]);
 
-      console.log('Checking file type:', file.type, 'allowed:', allowedTypes.includes(file.type));
+      const allowedExts = new Set([
+        'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
+        'txt', 'csv', 'tsv', 'rtf', 'odt', 'odp', 'ods',
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tif', 'tiff',
+        'zip', 'rar',
+      ]);
 
-      if (!allowedTypes.includes(file.type)) {
-        toast.error('Only PDF, Word, Excel, and Image files are allowed');
+      const fileExt = (file.name.split('.').pop() || '').toLowerCase();
+      const isAllowed = allowedMimeTypes.has(file.type) || allowedExts.has(fileExt);
+
+      console.log('File type check:', file.type, 'ext:', fileExt, 'allowed:', isAllowed);
+
+      if (!isAllowed) {
+        toast.error(`"${file.name}" is not a supported file type.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      // Check file size (max 25MB)
+      console.log('Checking file size:', file.size, 'max:', 25 * 1024 * 1024);
+      if (file.size > 25 * 1024 * 1024) {
+        toast.error('File size should be less than 25MB');
         // Reset the file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -193,27 +223,25 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
         return;
       }
 
-      // Check file size (max 10MB)
-      console.log('Checking file size:', file.size, 'max:', 10 * 1024 * 1024);
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size should be less than 10MB');
-        // Reset the file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Determine document type
+      // Determine document type from MIME or extension
       let documentType = 'Document';
-      if (file.type === 'application/pdf') {
+      const ext2 = (file.name.split('.').pop() || '').toLowerCase();
+      if (file.type === 'application/pdf' || ext2 === 'pdf') {
         documentType = 'PDF';
-      } else if (file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      } else if (['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type) || ['doc', 'docx', 'odt', 'rtf'].includes(ext2)) {
         documentType = 'Word Document';
-      } else if (file.type === 'application/vnd.ms-excel' || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      } else if (['application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'].includes(file.type) || ['ppt', 'pptx', 'odp'].includes(ext2)) {
+        documentType = 'Presentation';
+      } else if (['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(file.type) || ['xls', 'xlsx', 'ods'].includes(ext2)) {
         documentType = 'Excel Spreadsheet';
+      } else if (file.type === 'text/csv' || ext2 === 'csv' || ext2 === 'tsv') {
+        documentType = 'CSV File';
+      } else if (file.type === 'text/plain' || ext2 === 'txt') {
+        documentType = 'Text File';
       } else if (file.type.startsWith('image/')) {
         documentType = 'Image';
+      } else if (['zip', 'rar'].includes(ext2)) {
+        documentType = 'Archive';
       }
 
       console.log('Setting document type:', documentType);
@@ -457,15 +485,19 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.bmp,.webp"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.tsv,.rtf,.odt,.odp,.ods,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.tif,.tiff,.zip,.rar"
             />
             <span className="ml-3 text-sm text-light-darker flex items-center">
               {fileName ? (
                 <>
                   {fileType === 'PDF' && <FaFilePdf className="text-red-500 mr-2" />}
                   {fileType === 'Word Document' && <FaFileWord className="text-blue-500 mr-2" />}
+                  {fileType === 'Presentation' && <FaFilePowerpoint className="text-orange-500 mr-2" />}
                   {fileType === 'Excel Spreadsheet' && <FaFileExcel className="text-green-500 mr-2" />}
+                  {fileType === 'CSV File' && <FaFileCsv className="text-teal-500 mr-2" />}
+                  {fileType === 'Text File' && <FaFileAlt className="text-yellow-500 mr-2" />}
                   {fileType === 'Image' && <FaFileImage className="text-purple-500 mr-2" />}
+                  {fileType === 'Archive' && <FaFileArchive className="text-gray-400 mr-2" />}
                   {fileType === 'Document' && <FaFile className="text-gray-400 mr-2" />}
                   {fileType}: {fileName}
                 </>
@@ -474,7 +506,7 @@ const NoteForm = ({ initialData, isEditing = false }: NoteFormProps) => {
               )}
             </span>
           </div>
-          <p className="text-xs text-accent mt-1">Max file size: 10MB. Supported formats: PDF, Word, Excel, and Images.</p>
+          <p className="text-xs text-accent mt-1">Max 25MB. Supported: PDF, Word, PowerPoint, Excel, CSV, Text, Images (JPG/PNG/SVG/TIFF), Archives (ZIP/RAR).</p>
         </div>
 
         <div className="flex justify-between">

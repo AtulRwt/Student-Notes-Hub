@@ -542,7 +542,7 @@ const ChatWindowWhatsApp = ({ chat, onBack }: ChatWindowWhatsAppProps) => {
             ref={fileInputRef}
             onChange={handleFileSelect}
             className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.txt,.csv,.rtf,.xls,.xlsx,.odt,.odp,.ods,.svg,.tif,.tiff,.zip,.rar"
           />
 
           <button
