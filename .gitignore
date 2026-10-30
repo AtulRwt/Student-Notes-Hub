@@ -1,4 +1,5 @@
 # dependencies
+node_modules
 node_modules/
 /.pnp
 .pnp.js
@@ -6,6 +7,13 @@ node_modules/
 # testing
 /coverage
 
+# next.js
+/.next/
+/out/
+
+# production
+build/
+dist/
 # production builds
 /build
 /dist
