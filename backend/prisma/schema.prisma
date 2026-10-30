@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  name         String
+  profileImage String?
+  bio          String?
+  education    String?
+  interests           String[]  @default([])
+  onboardingCompleted Boolean   @default(false)
+  socialLinks         Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  notes        Note[]
+  favorites    Favorite[]
+  comments     Comment[]
+  summaries    NoteSummary[]
+  // New fields for follow system
+  followers    Follow[]            @relation("follower")
+  following    Follow[]            @relation("following")
+  // New fields for connection system
+  sentRequests     ConnectionRequest[] @relation("sender")
+  receivedRequests ConnectionRequest[] @relation("receiver")
+  // Notifications
+  notifications   Notification[]  @relation("notificationReceiver")
+  causedNotifications Notification[] @relation("notificationCauser")
+  // User settings
+  settings      UserSettings?
+}
+
+// User settings model to store all user preferences
+model UserSettings {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  notifications Json     // Store notification preferences as JSON
+  appearance   Json     // Store appearance preferences as JSON
+  security     Json     // Store security preferences as JSON
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  fileUrl     String?
+  externalUrl String?
+  semester    String
+  courseId    String?
+  aiSummary   String?    // AI-generated summary of the note content (legacy)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  tags        NoteTags[]
+  favorites   Favorite[]
+  comments    Comment[]
+  summaries   NoteSummary[] // Relation to user-specific summaries
+}
+
+// New model for user-specific note summaries
+model NoteSummary {
+  id        String   @id @default(uuid())
+  content   String   // The AI-generated summary content
+  noteId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Unique constraint to ensure one summary per user per note
+  @@unique([noteId, userId])
+  @@index([noteId])
+  @@index([userId])
+}
+
+model Tag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  notes     NoteTags[]
+}
+
+model NoteTags {
+  noteId String
+  tagId  String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+}
+
+model Favorite {
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@id([userId, noteId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+}
+
+// Instagram-style follow relationship
+model Follow {
+  followerId   String
+  followingId  String
+  createdAt    DateTime @default(now())
+  follower     User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following    User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// LinkedIn-style connection system
+model ConnectionRequest {
+  id          String   @id @default(uuid())
+  senderId    String
+  receiverId  String
+  status      String   @default("pending") // pending, accepted, declined
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sender      User     @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+// Notification system
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String   // user who receives the notification
+  causerId    String   // user who caused the notification
+  type        String   // follow, connection_request, connection_accepted, etc.
+  read        Boolean  @default(false)
+  data        Json?    // additional data if needed
+  createdAt   DateTime @default(now())
+  user        User     @relation("notificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  causer      User     @relation("notificationCauser", fields: [causerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([causerId])
+}
+
+model Feedback {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  rating    Int?
+  category  String?
+  emailTo   String   @default("studentnoteshub@gmail.com")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Chat System Models
+model Chat {
+  id          String        @id @default(uuid())
+  name        String?       // For group chats
+  type        String        @default("direct") // direct or group
+  createdBy   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  members     ChatMember[]
+  messages    Message[]
+  
+  @@index([createdAt])
+}
+
+model ChatMember {
+  id            String    @id @default(uuid())
+  chatId        String
+  userId        String
+  role          String    @default("member") // admin or member
+  joinedAt      DateTime  @default(now())
+  lastRead      DateTime? // Last time user read messages
+  mutedUntil    DateTime? // If user muted the chat
+  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  chatId      String
+  senderId    String
+  content     String?
+  type        String    @default("text") // text, image, file
+  fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+  replyTo     String?   // ID of message being replied to
+  edited      Boolean   @default(false)
+  deleted     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  readBy      MessageRead[]
+  reactions   MessageReaction[]
+  
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}

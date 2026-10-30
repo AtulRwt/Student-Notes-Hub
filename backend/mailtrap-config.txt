@@ -1,0 +1,25 @@
+# Mailtrap Configuration for .env file
+# Copy these settings to your .env file in the backend directory
+
+# Mailtrap SMTP Settings
+EMAIL_SERVICE="smtp"
+EMAIL_HOST="sandbox.smtp.mailtrap.io"
+EMAIL_PORT=2525
+EMAIL_USER="86de467ca6dc5c"
+EMAIL_PASSWORD="763e7d0a6517ab"
+EMAIL_FROM="Student Notes Hub <noreply@studentnoteshub.com>"
+
+# Keep the fixed recipient email for feedback
+FEEDBACK_EMAIL="studentnoteshub@gmail.com"
+
+# ------------------------------------------------------
+# How to get your Mailtrap credentials:
+# 1. Sign up at https://mailtrap.io/
+# 2. Go to the Email Testing section
+# 3. Select your inbox
+# 4. Find the SMTP settings section
+# 5. Copy the Host, Port, Username and Password values
+# ------------------------------------------------------
+
+# After adding these settings to your .env file, restart the backend server
+# All feedback emails will be captured in your Mailtrap inbox 
